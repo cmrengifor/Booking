@@ -20,18 +20,21 @@ _AVAILABLE_SLOTS_SQL = text(
         WHERE ss.service_id = :service_id
           AND s.tenant_id = :tenant_id
           AND s.active = true
-          AND (:staff_id IS NULL OR s.id = :staff_id)
+          AND (:staff_id ::uuid IS NULL OR s.id = :staff_id ::uuid)
     ),
     service_info AS (
         SELECT duration_minutes, buffer_minutes
         FROM services
         WHERE id = :service_id
     ),
+    tenant_tz AS (
+        SELECT timezone FROM tenants WHERE id = :tenant_id
+    ),
     working_window AS (
         SELECT cs.staff_id, wh.start_time, wh.end_time
         FROM candidate_staff cs
         JOIN staff_working_hours wh ON wh.staff_id = cs.staff_id
-        WHERE wh.day_of_week = EXTRACT(DOW FROM :target_date::date)
+        WHERE wh.day_of_week = EXTRACT(DOW FROM :target_date ::date)
     ),
     slot_candidates AS (
         SELECT
@@ -40,11 +43,12 @@ _AVAILABLE_SLOTS_SQL = text(
             gs + (si.duration_minutes + si.buffer_minutes) * INTERVAL '1 minute' AS end_time
         FROM working_window ww
         CROSS JOIN service_info si
+        CROSS JOIN tenant_tz
         CROSS JOIN LATERAL generate_series(
-            (:target_date::date + ww.start_time)::timestamptz,
-            (:target_date::date + ww.end_time)::timestamptz
+            (:target_date ::date + ww.start_time) AT TIME ZONE tenant_tz.timezone,
+            (:target_date ::date + ww.end_time) AT TIME ZONE tenant_tz.timezone
                 - (si.duration_minutes + si.buffer_minutes) * INTERVAL '1 minute',
-            (:slot_granularity_minutes::text || ' minutes')::interval
+            (:slot_granularity_minutes ::text || ' minutes')::interval
         ) AS gs
     )
     SELECT sc.staff_id, sc.start_time, sc.end_time
@@ -97,11 +101,11 @@ def get_available_slots(
 _LEAST_BOOKED_STAFF_SQL = text(
     """
     SELECT cand.staff_id
-    FROM unnest(:candidate_staff_ids::uuid[]) AS cand(staff_id)
+    FROM unnest(:candidate_staff_ids ::uuid[]) AS cand(staff_id)
     ORDER BY (
         SELECT count(*) FROM appointments a
         WHERE a.staff_id = cand.staff_id AND a.status = 'confirmed'
-          AND a.start_time::date = :target_date::date
+          AND a.start_time::date = :target_date ::date
     ) ASC
     LIMIT 1
     """
