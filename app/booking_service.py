@@ -6,15 +6,36 @@ from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Appointment, AppointmentService, BookingHold, Client, Notification, Service, Staff, Tenant
+from app.models import (
+    Appointment,
+    AppointmentService,
+    BookingHold,
+    Client,
+    Notification,
+    PortfolioImage,
+    Review,
+    Service,
+    Staff,
+    Tenant,
+    VenuePhoto,
+)
 from app.notifications import send_notification
 from app.queries.availability import assign_least_booked_staff, get_available_slots
-from app.schemas import AppointmentDetailRead, BookingNotificationRead, ClientInfo
+from app.schemas import (
+    AppointmentDetailRead,
+    BookingNotificationRead,
+    ClientInfo,
+    ReviewCreate,
+    ReviewRead,
+    ReviewSummary,
+    TenantUpdate,
+)
+from app.uploads import delete_image, save_image
 
 HOLD_DURATION_MINUTES = 5
 MAX_ANY_AVAILABLE_RETRIES = 2
@@ -93,6 +114,25 @@ def get_qualifying_staff(db: Session, tenant_id: UUID, service_id: UUID) -> list
     if service is None or service.tenant_id != tenant_id:
         raise HTTPException(status_code=404, detail="Service not found")
     return [s for s in service.staff if s.active]
+
+
+def get_active_staff(db: Session, tenant_id: UUID) -> list[Staff]:
+    return db.execute(
+        select(Staff).where(Staff.tenant_id == tenant_id, Staff.active.is_(True)).order_by(Staff.name)
+    ).scalars().all()
+
+
+def get_public_staff_or_404(db: Session, tenant_id: UUID, staff_id: UUID) -> Staff:
+    staff = db.get(Staff, staff_id)
+    if staff is None or staff.tenant_id != tenant_id or not staff.active:
+        raise HTTPException(status_code=404, detail="Technician not found")
+    return staff
+
+
+def get_portfolio_images(db: Session, staff_id: UUID) -> list[PortfolioImage]:
+    return db.execute(
+        select(PortfolioImage).where(PortfolioImage.staff_id == staff_id).order_by(PortfolioImage.created_at)
+    ).scalars().all()
 
 
 def _get_service_or_404(db: Session, tenant_id: UUID, service_id: UUID) -> Service:
@@ -350,3 +390,114 @@ def get_recent_booking_notifications(
         )
         for n, a, c in rows
     ]
+
+
+# ============================== TENANT / VENUE ==============================
+
+def update_tenant(db: Session, tenant: Tenant, payload: TenantUpdate) -> Tenant:
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(tenant, field, value)
+    db.commit()
+    db.refresh(tenant)
+    return tenant
+
+
+async def add_venue_photo(db: Session, tenant: Tenant, file: UploadFile, caption: str | None) -> VenuePhoto:
+    image_path = await save_image(file, "venue")
+    photo = VenuePhoto(tenant_id=tenant.id, image_path=image_path, caption=caption)
+    db.add(photo)
+    db.commit()
+    db.refresh(photo)
+    return photo
+
+
+def get_venue_photos(db: Session, tenant_id: UUID) -> list[VenuePhoto]:
+    return db.execute(
+        select(VenuePhoto).where(VenuePhoto.tenant_id == tenant_id).order_by(VenuePhoto.created_at)
+    ).scalars().all()
+
+
+def delete_venue_photo(db: Session, tenant_id: UUID, photo_id: UUID) -> None:
+    photo = db.get(VenuePhoto, photo_id)
+    if photo is None or photo.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Photo not found")
+    delete_image(photo.image_path)
+    db.delete(photo)
+    db.commit()
+
+
+# ============================== STAFF PORTFOLIO ==============================
+
+async def add_portfolio_image(
+    db: Session, tenant_id: UUID, staff_id: UUID, file: UploadFile, caption: str | None
+) -> PortfolioImage:
+    staff = db.get(Staff, staff_id)
+    if staff is None or staff.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    image_path = await save_image(file, "portfolio")
+    image = PortfolioImage(staff_id=staff.id, image_path=image_path, caption=caption)
+    db.add(image)
+    db.commit()
+    db.refresh(image)
+    return image
+
+
+def delete_portfolio_image(db: Session, tenant_id: UUID, staff_id: UUID, image_id: UUID) -> None:
+    image = db.get(PortfolioImage, image_id)
+    if image is None or image.staff_id != staff_id:
+        raise HTTPException(status_code=404, detail="Image not found")
+    staff = db.get(Staff, staff_id)
+    if staff is None or staff.tenant_id != tenant_id:
+        raise HTTPException(status_code=404, detail="Staff member not found")
+    delete_image(image.image_path)
+    db.delete(image)
+    db.commit()
+
+
+# ================================== REVIEWS ==================================
+
+def submit_review(db: Session, tenant_id: UUID, appointment_id: UUID, payload: ReviewCreate) -> Review:
+    appt = get_appointment_or_404(db, tenant_id, appointment_id)
+    if appt.status != "completed":
+        raise HTTPException(status_code=409, detail="Only completed appointments can be reviewed")
+    existing = db.execute(select(Review).where(Review.appointment_id == appt.id)).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="This appointment has already been reviewed")
+    review = Review(appointment_id=appt.id, rating=payload.rating, comment=payload.comment)
+    db.add(review)
+    db.commit()
+    db.refresh(review)
+    return review
+
+
+def _review_summary(db: Session, stmt) -> ReviewSummary:
+    rows = db.execute(stmt).all()
+    reviews = [
+        ReviewRead(id=r.id, rating=r.rating, comment=r.comment, created_at=r.created_at, client_name=c.name)
+        for r, c in rows
+    ]
+    count = len(reviews)
+    average = round(sum(r.rating for r in reviews) / count, 2) if count else None
+    return ReviewSummary(average=average, count=count, reviews=reviews)
+
+
+def get_venue_reviews(db: Session, tenant_id: UUID) -> ReviewSummary:
+    stmt = (
+        select(Review, Client)
+        .join(Appointment, Review.appointment_id == Appointment.id)
+        .join(Client, Appointment.client_id == Client.id)
+        .where(Appointment.tenant_id == tenant_id)
+        .order_by(Review.created_at.desc())
+    )
+    return _review_summary(db, stmt)
+
+
+def get_staff_reviews(db: Session, tenant_id: UUID, staff_id: UUID) -> ReviewSummary:
+    stmt = (
+        select(Review, Client)
+        .join(Appointment, Review.appointment_id == Appointment.id)
+        .join(Client, Appointment.client_id == Client.id)
+        .where(Appointment.tenant_id == tenant_id, Appointment.staff_id == staff_id)
+        .order_by(Review.created_at.desc())
+    )
+    return _review_summary(db, stmt)

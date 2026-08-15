@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import appointments, booking, notifications, services, staff
+from app.routers import appointments, booking, notifications, reviews, services, staff, tenant
 
 app = FastAPI(title="Nail Salon Booking")
 
@@ -24,12 +24,18 @@ app.include_router(staff.router)
 app.include_router(booking.router)
 app.include_router(appointments.router)
 app.include_router(notifications.router)
+app.include_router(tenant.router)
+app.include_router(reviews.router)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
 
+
+UPLOAD_DIR = Path(__file__).resolve().parent.parent / "uploads"
+UPLOAD_DIR.mkdir(exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 # Mounted last and at "/" so it only catches paths none of the routes
 # above matched -- a single-page app (client widget + staff panel,

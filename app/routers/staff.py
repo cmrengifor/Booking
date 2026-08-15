@@ -1,13 +1,15 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import booking_service
 from app.database import get_db
 from app.dependencies import get_current_tenant
 from app.models import Service, Staff, StaffTimeOff, StaffWorkingHours, Tenant
 from app.schemas import (
+    PortfolioImageRead,
     StaffCreate,
     StaffRead,
     StaffServicesUpdate,
@@ -188,3 +190,24 @@ def delete_time_off(
         raise HTTPException(status_code=404, detail="Time-off block not found")
     db.delete(time_off)
     db.commit()
+
+
+@router.post("/{staff_id}/portfolio", response_model=PortfolioImageRead, status_code=201)
+async def upload_portfolio_image(
+    staff_id: UUID,
+    file: UploadFile = File(...),
+    caption: str | None = Form(None),
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    return await booking_service.add_portfolio_image(db, tenant.id, staff_id, file, caption)
+
+
+@router.delete("/{staff_id}/portfolio/{image_id}", status_code=204)
+def delete_portfolio_image(
+    staff_id: UUID,
+    image_id: UUID,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    booking_service.delete_portfolio_image(db, tenant.id, staff_id, image_id)

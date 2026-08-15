@@ -54,6 +54,7 @@ class StaffUpdate(BaseModel):
     name: str | None = None
     email: str | None = None
     phone: str | None = None
+    bio: str | None = None
     active: bool | None = None
 
 
@@ -61,12 +62,34 @@ class StaffRead(StaffBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    bio: str | None = None
     active: bool
     created_at: datetime
 
 
 class StaffServicesUpdate(BaseModel):
     service_ids: list[UUID]
+
+
+class StaffPublicRead(BaseModel):
+    """Public-facing technician info -- deliberately excludes phone/email.
+    Used anywhere an anonymous visitor can see staff (booking flow,
+    landing page, portfolio), so private contact details never leak.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    bio: str | None = None
+
+
+class PortfolioImageRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    image_path: str
+    caption: str | None = None
+    created_at: datetime
 
 
 class WorkingHourEntry(BaseModel):
@@ -191,3 +214,44 @@ class BookingNotificationRead(BaseModel):
     appointment_id: UUID
     client_name: str
     start_time: datetime
+
+
+class TenantPublicRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    address: str | None = None
+
+
+class TenantUpdate(BaseModel):
+    name: str | None = None
+    address: str | None = None
+    whatsapp_number: str | None = None
+
+
+class VenuePhotoRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    image_path: str
+    caption: str | None = None
+    created_at: datetime
+
+
+class ReviewCreate(BaseModel):
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+
+
+class ReviewRead(BaseModel):
+    id: UUID
+    rating: int
+    comment: str | None = None
+    created_at: datetime
+    client_name: str
+
+
+class ReviewSummary(BaseModel):
+    average: float | None = None
+    count: int
+    reviews: list[ReviewRead]

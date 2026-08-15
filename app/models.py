@@ -38,6 +38,7 @@ class Tenant(Base):
     )
     name: Mapped[str] = mapped_column(Text)
     slug: Mapped[str] = mapped_column(Text, unique=True)
+    address: Mapped[str | None] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(Text, default="America/Bogota")
     locale: Mapped[str] = mapped_column(Text, default="es")
     whatsapp_number: Mapped[str | None] = mapped_column(Text)
@@ -60,6 +61,7 @@ class Staff(Base):
     name: Mapped[str] = mapped_column(Text)
     email: Mapped[str | None] = mapped_column(Text)
     phone: Mapped[str | None] = mapped_column(Text)
+    bio: Mapped[str | None] = mapped_column(Text)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
 
@@ -71,6 +73,9 @@ class Staff(Base):
         back_populates="staff", cascade="all, delete-orphan"
     )
     services: Mapped[list["Service"]] = relationship(secondary=staff_services, back_populates="staff")
+    portfolio_images: Mapped[list["PortfolioImage"]] = relationship(
+        back_populates="staff", cascade="all, delete-orphan", order_by="PortfolioImage.created_at"
+    )
 
 
 class StaffWorkingHours(Base):
@@ -209,3 +214,45 @@ class Notification(Base):
     status: Mapped[str] = mapped_column(Text, default="pending")
     sent_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class PortfolioImage(Base):
+    __tablename__ = "staff_portfolio_images"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("staff.id", ondelete="CASCADE"))
+    image_path: Mapped[str] = mapped_column(Text)
+    caption: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    staff: Mapped["Staff"] = relationship(back_populates="portfolio_images")
+
+
+class VenuePhoto(Base):
+    __tablename__ = "venue_photos"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"))
+    image_path: Mapped[str] = mapped_column(Text)
+    caption: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    appointment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("appointments.id", ondelete="CASCADE"), unique=True
+    )
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    appointment: Mapped["Appointment"] = relationship()

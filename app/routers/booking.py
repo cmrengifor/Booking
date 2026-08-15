@@ -16,20 +16,51 @@ from app.schemas import (
     ConfirmCreate,
     HoldCreate,
     HoldRead,
+    PortfolioImageRead,
+    ReviewCreate,
+    ReviewRead,
     RescheduleCreate,
-    StaffRead,
+    StaffPublicRead,
 )
 
 router = APIRouter(prefix="/booking", tags=["booking"])
 
 
-@router.get("/staff", response_model=list[StaffRead])
+@router.get("/staff", response_model=list[StaffPublicRead])
 def staff_for_service(
     service_id: UUID,
     db: Session = Depends(get_db),
     tenant: Tenant = Depends(get_current_tenant),
 ):
     return booking_service.get_qualifying_staff(db, tenant.id, service_id)
+
+
+@router.get("/team", response_model=list[StaffPublicRead])
+def team(
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    """Every active technician, for the landing page's team section."""
+    return booking_service.get_active_staff(db, tenant.id)
+
+
+@router.get("/team/{staff_id}", response_model=StaffPublicRead)
+def technician_profile(
+    staff_id: UUID,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    return booking_service.get_public_staff_or_404(db, tenant.id, staff_id)
+
+
+@router.get("/team/{staff_id}/portfolio", response_model=list[PortfolioImageRead])
+def technician_portfolio(
+    staff_id: UUID,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    booking_service.get_public_staff_or_404(db, tenant.id, staff_id)
+    return booking_service.get_portfolio_images(db, staff_id)
 
 
 @router.get("/availability", response_model=list[AvailabilitySlot])
@@ -107,3 +138,21 @@ def reschedule_appointment(
     tenant: Tenant = Depends(get_current_tenant),
 ):
     return booking_service.reschedule_appointment(db, tenant, appointment_id, payload.hold_token)
+
+
+@router.post("/appointments/{appointment_id}/review", status_code=201)
+def submit_review(
+    appointment_id: UUID,
+    payload: ReviewCreate,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+) -> ReviewRead:
+    review = booking_service.submit_review(db, tenant.id, appointment_id, payload)
+    appt = booking_service.get_appointment_or_404(db, tenant.id, appointment_id)
+    return ReviewRead(
+        id=review.id,
+        rating=review.rating,
+        comment=review.comment,
+        created_at=review.created_at,
+        client_name=appt.client.name,
+    )
