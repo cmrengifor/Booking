@@ -15,5 +15,11 @@ class Settings(BaseSettings):
     whatsapp_phone_number_id: str | None = None
     whatsapp_api_version: str = "v21.0"
 
+    # Vercel Blob for image storage. Left unset in local dev -- falls back
+    # to local disk under uploads/. Vercel's filesystem is read-only at
+    # runtime (except /tmp, which doesn't persist), so this must be set
+    # in any Vercel deployment or every image upload/read breaks.
+    blob_read_write_token: str | None = None
+
 
 settings = Settings()

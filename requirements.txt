@@ -6,3 +6,4 @@ psycopg[binary]==3.2.3
 pydantic-settings==2.7.0
 requests==2.32.3
 python-multipart==0.0.20
+vercel==0.10.0
