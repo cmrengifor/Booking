@@ -27,6 +27,21 @@
     font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--muted);
   }
   .switch button.active { background: var(--wine); color: #fff; }
+  .switch button { position: relative; }
+  .notif-badge {
+    display: none; position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px;
+    padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff;
+    font-size: 10px; font-weight: 700; align-items: center; justify-content: center; line-height: 1;
+  }
+  .toast {
+    position: fixed; top: 70px; right: 20px; z-index: 100; background: var(--card);
+    border: 1px solid var(--border); border-left: 4px solid var(--sage); border-radius: 10px;
+    padding: 12px 16px; box-shadow: 0 6px 20px rgba(0,0,0,.12); max-width: 300px;
+    font-size: 13px; animation: toast-in .2s ease-out;
+  }
+  .toast .title { font-weight: 600; margin-bottom: 2px; }
+  .toast .meta { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 12px; }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
   /* ---- client booking widget ---- */
   .app { max-width: 480px; margin: 0 auto; min-height: calc(100vh - 53px); display: flex; flex-direction: column; }
@@ -158,6 +173,10 @@ const state = {
     bookingModal: null,
     error: null,
   },
+  notifications: {
+    since: new Date().toISOString(), // only alert on bookings from now on, not history
+    unseen: 0,
+  },
 };
 
 async function api(path, opts) {
@@ -184,12 +203,16 @@ function render() {
       <span class="brand">Salon</span>
       <div class="switch">
         <button data-mode="client" class="${state.mode === "client" ? "active" : ""}">Reservar</button>
-        <button data-mode="admin" class="${state.mode === "admin" ? "active" : ""}">Panel del salón</button>
+        <button data-mode="admin" class="${state.mode === "admin" ? "active" : ""}">
+          Panel del salón
+          <span id="notif-badge" class="notif-badge"></span>
+        </button>
       </div>
     </div>
     <div id="content" class="${state.mode === "client" ? "app" : "shell"}"></div>
   `;
   document.querySelectorAll(".switch button").forEach(b => b.onclick = () => switchMode(b.dataset.mode));
+  updateNotifBadge();
   if (state.mode === "client") renderClient(); else renderAdmin();
 }
 
@@ -199,8 +222,62 @@ function switchMode(mode) {
   url.searchParams.set("view", mode);
   if (mode === "admin") url.searchParams.delete("appt");
   history.replaceState(null, "", url);
+  if (mode === "admin") { state.notifications.unseen = 0; } // viewing the panel counts as "seen"
   render();
   if (mode === "client") initClient(); else initAdmin();
+}
+
+// ============================ LIVE BOOKING NOTIFICATIONS ============================
+// Polls for new bookings (reuses the confirmation notifications logged
+// on every booking) so staff see an alert without needing to refresh.
+// DOM updates here are targeted (badge text, a standalone toast) rather
+// than a full render(), so a poll landing mid-keystroke in a form never
+// clobbers what the user is typing.
+const NOTIF_POLL_INTERVAL_MS = 15000;
+
+function updateNotifBadge() {
+  const el = document.getElementById("notif-badge");
+  if (!el) return;
+  if (state.notifications.unseen > 0) {
+    el.textContent = state.notifications.unseen > 9 ? "9+" : state.notifications.unseen;
+    el.style.display = "flex";
+  } else {
+    el.style.display = "none";
+  }
+}
+
+function showBookingToast(item) {
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.innerHTML = `
+    <div class="title">Nueva reserva: ${item.client_name}</div>
+    <div class="meta">${fmtDateTime(item.start_time)}</div>
+  `;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+
+async function pollNotifications() {
+  try {
+    const items = await api(`/notifications/recent?since=${encodeURIComponent(state.notifications.since)}`);
+    if (!items.length) return;
+    state.notifications.since = items[0].created_at; // items are newest-first
+    if (state.mode !== "admin") {
+      state.notifications.unseen += items.length;
+      updateNotifBadge();
+    }
+    items.slice().reverse().forEach(showBookingToast);
+    if (state.mode === "admin" && state.admin.tab === "calendar") {
+      await loadAdminCalendar();
+      renderAdmin();
+    }
+  } catch (e) {
+    // transient network hiccups shouldn't interrupt whatever the user is doing
+  }
+}
+
+function startNotificationPolling() {
+  setInterval(pollNotifications, NOTIF_POLL_INTERVAL_MS);
 }
 
 // ============================ CLIENT WIDGET ============================
@@ -795,6 +872,7 @@ function initAdmin() {
 // ================================ BOOTSTRAP ================================
 render();
 if (state.mode === "client") initClient(); else initAdmin();
+startNotificationPolling();
 </script>
 </body>
 </html>

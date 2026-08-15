@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.models import Appointment, AppointmentService, BookingHold, Client, Notification, Service, Staff, Tenant
 from app.notifications import send_notification
 from app.queries.availability import assign_least_booked_staff, get_available_slots
-from app.schemas import AppointmentDetailRead, ClientInfo
+from app.schemas import AppointmentDetailRead, BookingNotificationRead, ClientInfo
 
 HOLD_DURATION_MINUTES = 5
 MAX_ANY_AVAILABLE_RETRIES = 2
@@ -318,4 +318,35 @@ def list_appointments_detailed(
             service_names=[aps.service.name for aps in appt.services],
         )
         for appt in appointments
+    ]
+
+
+def get_recent_booking_notifications(
+    db: Session, tenant: Tenant, since: datetime
+) -> list[BookingNotificationRead]:
+    """New-booking events for the staff panel's live alert -- reuses the
+    'confirmation' notifications already logged on every booking
+    (widget or manual) rather than tracking a separate events feed.
+    """
+    stmt = (
+        select(Notification, Appointment, Client)
+        .join(Appointment, Notification.appointment_id == Appointment.id)
+        .join(Client, Appointment.client_id == Client.id)
+        .where(
+            Appointment.tenant_id == tenant.id,
+            Notification.type == "confirmation",
+            Notification.created_at > since,
+        )
+        .order_by(Notification.created_at.desc())
+    )
+    rows = db.execute(stmt).all()
+    return [
+        BookingNotificationRead(
+            id=n.id,
+            created_at=n.created_at,
+            appointment_id=a.id,
+            client_name=c.name,
+            start_time=a.start_time,
+        )
+        for n, a, c in rows
     ]

@@ -183,3 +183,11 @@ class AppointmentDetailRead(AppointmentRead):
     client_phone: str | None = None
     staff_name: str
     service_names: list[str]
+
+
+class BookingNotificationRead(BaseModel):
+    id: UUID
+    created_at: datetime
+    appointment_id: UUID
+    client_name: str
+    start_time: datetime

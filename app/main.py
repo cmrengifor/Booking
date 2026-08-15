@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import appointments, booking, services, staff
+from app.routers import appointments, booking, notifications, services, staff
 
 app = FastAPI(title="Nail Salon Booking")
 
@@ -23,6 +23,7 @@ app.include_router(services.router)
 app.include_router(staff.router)
 app.include_router(booking.router)
 app.include_router(appointments.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health")
