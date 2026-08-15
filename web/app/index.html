@@ -101,6 +101,81 @@
   .hint { color: var(--muted); font-size: 12px; margin-top: 10px; text-align: center; }
   .loading { text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px; }
 
+  /* ---- landing page ---- */
+  .landing-header { padding: 20px 20px 4px; }
+  .landing-header h1 { margin-bottom: 6px; }
+  .address-line {
+    display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; margin: 0 0 14px;
+  }
+  .rating-badge {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600;
+    background: var(--ivory); border: 1px solid var(--border); border-radius: 999px; padding: 3px 10px; margin-bottom: 14px;
+  }
+  .rating-badge .stars { color: var(--gold); }
+  .photo-gallery {
+    display: flex; gap: 8px; overflow-x: auto; padding: 0 20px 20px; margin: 0 -20px; scroll-snap-type: x mandatory;
+  }
+  .photo-gallery img {
+    width: 220px; height: 150px; object-fit: cover; border-radius: 12px; flex-shrink: 0; scroll-snap-align: start;
+    background: var(--border);
+  }
+  .section {
+    padding: 24px 20px 4px;
+  }
+  .section h2 {
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 18px; margin: 0 0 14px;
+  }
+  .service-row {
+    display: flex; justify-content: space-between; align-items: center; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px;
+  }
+  .service-row .name { font-weight: 600; font-size: 14px; }
+  .service-row .meta { color: var(--muted); font-size: 12px; font-family: 'IBM Plex Mono', monospace; margin-top: 2px; }
+  .service-row .right { text-align: right; }
+  .service-row .price { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--wine); font-size: 14px; margin-bottom: 6px; }
+  .team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+  .team-card {
+    text-align: center; cursor: pointer; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 8px;
+  }
+  .avatar-faceless {
+    width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--sage), var(--wine));
+    color: #fff; display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;
+    font-family: 'Fraunces', serif; font-weight: 600; font-size: 20px;
+  }
+  .avatar-faceless.large { width: 84px; height: 84px; font-size: 28px; }
+  .team-card .name { font-weight: 600; font-size: 13px; }
+  .team-card .rating { color: var(--muted); font-size: 12px; margin-top: 3px; }
+  .review-card { border-bottom: 1px solid var(--border); padding: 14px 0; }
+  .review-card:last-child { border-bottom: none; }
+  .review-card .head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .review-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--ivory); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--wine);
+  }
+  .review-card .name { font-weight: 600; font-size: 13px; }
+  .review-card .date { color: var(--muted); font-size: 11px; }
+  .review-card .stars { color: var(--gold); font-size: 13px; margin-bottom: 4px; }
+  .review-card .comment { font-size: 13px; color: var(--ink); }
+  .sticky-cta {
+    position: sticky; bottom: 0; background: var(--card); border-top: 1px solid var(--border);
+    padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  }
+  .sticky-cta .info .biz { font-weight: 600; font-size: 13px; }
+  .sticky-cta .info .count { color: var(--muted); font-size: 11px; }
+  .sticky-cta .btn { padding: 12px 20px; white-space: nowrap; }
+  .star-picker { display: flex; gap: 4px; font-size: 28px; }
+  .star-picker span { cursor: pointer; color: var(--border); transition: color .1s; }
+  .star-picker span.filled { color: var(--gold); }
+  textarea {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 14px; resize: vertical; min-height: 70px;
+  }
+  .profile-header { text-align: center; padding: 24px 20px 8px; }
+  .profile-header .bio { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  .portfolio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .portfolio-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: var(--border); }
+
   /* ---- staff admin panel ---- */
   .shell { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
   .shell h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 24px; margin: 0 0 4px; }
@@ -145,12 +220,13 @@ const state = {
   // mode, since that's clearly someone following their own booking link.
   mode: manageApptId ? "client" : (params.get("view") === "admin" ? "admin" : "client"),
   book: {
-    view: manageApptId ? "manage" : "step",
+    view: manageApptId ? "manage" : "landing",
     step: 1,
     services: [],
     technicians: [],
     selectedService: null,
     selectedStaffId: undefined, // undefined = any available
+    staffLocked: false, // true when entering the flow from a technician's profile
     selectedDate: null,
     slots: [],
     selectedSlot: null,
@@ -160,6 +236,20 @@ const state = {
     manageAppt: null,
     manageError: null,
     manageActionError: null,
+    manageReview: null, // { rating, comment } draft while submitting
+    manageReviewError: null,
+    manageReviewSubmitted: null, // the submitted ReviewRead, once done
+    // landing page data
+    tenant: null,
+    venuePhotos: [],
+    venueReviews: null,
+    team: [],
+    landingLoaded: false,
+    // technician profile
+    profileStaffId: null,
+    profileStaff: null,
+    profilePortfolio: [],
+    profileReviews: null,
   },
   admin: {
     tab: "services",
@@ -179,8 +269,11 @@ const state = {
   },
 };
 
-async function api(path, opts) {
-  const res = await fetch(API + path, { headers: { "Content-Type": "application/json" }, ...opts });
+async function api(path, opts = {}) {
+  // FormData needs the browser to set its own multipart boundary header --
+  // forcing application/json on it would break the upload.
+  const headers = opts.body instanceof FormData ? {} : { "Content-Type": "application/json" };
+  const res = await fetch(API + path, { headers, ...opts });
   if (res.status === 204) return null;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
@@ -193,6 +286,13 @@ async function api(path, opts) {
 function fmtMoney(v) { return "$" + Number(v).toFixed(2); }
 function fmtTime(iso) { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
 function fmtDateTime(iso) { return new Date(iso).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function initials(name) {
+  return (name || "").split(" ").filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+}
+function starString(rating) {
+  const full = Math.round(rating);
+  return "★".repeat(full) + "☆".repeat(5 - full);
+}
 
 // ============================== SHELL ==============================
 function render() {
@@ -285,6 +385,8 @@ function renderClient() {
   const content = document.getElementById("content");
   const b = state.book;
   if (b.view === "manage") { content.innerHTML = renderManage(); wireManage(); return; }
+  if (b.view === "landing") { content.innerHTML = renderLanding(); wireLanding(); return; }
+  if (b.view === "team-profile") { content.innerHTML = renderTeamProfile(); wireTeamProfile(); return; }
   content.innerHTML = `
     <header>
       <h1>Reservar cita</h1>
@@ -305,13 +407,16 @@ function renderClient() {
 function renderStep1() {
   const b = state.book;
   if (!b.services.length) return `<div class="loading">Cargando servicios...</div>`;
-  return b.services.map(s => `
-    <div class="card" data-id="${s.id}">
-      <span class="price">${fmtMoney(s.price)}</span>
-      <div class="name">${s.name}</div>
-      <div class="meta">${s.duration_minutes} min${s.category ? " · " + s.category : ""}</div>
-    </div>
-  `).join("");
+  return `
+    <span class="back" id="backToLanding">&larr; Volver al inicio</span>
+    ${b.services.map(s => `
+      <div class="card" data-id="${s.id}">
+        <span class="price">${fmtMoney(s.price)}</span>
+        <div class="name">${s.name}</div>
+        <div class="meta">${s.duration_minutes} min${s.category ? " · " + s.category : ""}</div>
+      </div>
+    `).join("")}
+  `;
 }
 
 function renderStep2() {
@@ -404,7 +509,7 @@ function renderManage() {
   if (b.manageError) return `<main style="padding:24px 20px;"><div class="error">${b.manageError}</div></main>`;
   if (!b.manageAppt) return `<div class="loading">Cargando tu cita...</div>`;
   const a = b.manageAppt;
-  const cancelled = a.status === "cancelled";
+  const canCancel = a.status === "confirmed";
   return `
     <header><h1>Tu cita</h1></header>
     <main style="padding:0 20px;">
@@ -413,9 +518,35 @@ function renderManage() {
         <div class="row"><span class="k">Fecha y hora</span><span>${fmtDateTime(a.start_time)}</span></div>
         <div class="row"><span class="k">Precio</span><span>${fmtMoney(a.price_total)}</span></div>
       </div>
-      ${cancelled ? "" : `<button class="btn danger" id="cancelBtn">Cancelar cita</button>`}
+      ${canCancel ? `<button class="btn danger" id="cancelBtn">Cancelar cita</button>` : ""}
       ${b.manageActionError ? `<div class="error">${b.manageActionError}</div>` : ""}
+      ${a.status === "completed" ? renderReviewSection() : ""}
     </main>
+  `;
+}
+
+function renderReviewSection() {
+  const b = state.book;
+  if (b.manageReviewSubmitted) {
+    return `
+      <div class="summary" style="margin-top:16px;text-align:center;">
+        <div style="font-size:24px;">✓</div>
+        <p>¡Gracias por tu reseña!</p>
+        <div class="stars">${starString(b.manageReviewSubmitted.rating)}</div>
+      </div>
+    `;
+  }
+  const rating = (b.manageReview && b.manageReview.rating) || 0;
+  return `
+    <div class="summary" style="margin-top:16px;">
+      <h3 style="margin:0 0 10px;font-family:'Fraunces',serif;font-size:16px;">¿Cómo estuvo tu cita?</h3>
+      <div class="star-picker" id="starPicker">
+        ${[1,2,3,4,5].map(n => `<span data-star="${n}" class="${n <= rating ? "filled" : ""}">★</span>`).join("")}
+      </div>
+      <textarea id="reviewComment" placeholder="Cuéntanos cómo te fue (opcional)" style="margin-top:12px;"></textarea>
+      ${b.manageReviewError ? `<div class="error">${b.manageReviewError}</div>` : ""}
+      <button class="btn" id="submitReview" style="margin-top:10px;width:100%;" ${rating ? "" : "disabled"}>Enviar reseña</button>
+    </div>
   `;
 }
 
@@ -438,6 +569,34 @@ function wireManage() {
     }
     renderClient();
   };
+  const starPicker = document.getElementById("starPicker");
+  if (starPicker) starPicker.querySelectorAll("[data-star]").forEach(el => el.onclick = () => {
+    b.manageReview = { ...(b.manageReview || {}), rating: Number(el.dataset.star) };
+    renderClient();
+  });
+  const submitReview = document.getElementById("submitReview");
+  if (submitReview) submitReview.onclick = async () => {
+    const rating = (b.manageReview && b.manageReview.rating) || 0;
+    const comment = document.getElementById("reviewComment").value.trim();
+    try {
+      const review = await api(`/booking/appointments/${manageApptId}/review`, {
+        method: "POST",
+        body: JSON.stringify({ rating, comment: comment || null }),
+      });
+      b.manageReviewSubmitted = review;
+      b.manageReviewError = null;
+    } catch (e) {
+      // A 409 here means a review already exists (e.g. the page was reloaded
+      // after submitting) -- treat that as "already done", not an error.
+      if (e.status === 409) {
+        b.manageReviewSubmitted = { rating: rating || 5 };
+        b.manageReviewError = null;
+      } else {
+        b.manageReviewError = e.message;
+      }
+    }
+    renderClient();
+  };
 }
 
 function wireStep() {
@@ -446,15 +605,34 @@ function wireStep() {
     el.onclick = () => {
       if (b.step === 1) {
         b.selectedService = b.services.find(s => s.id === el.dataset.id);
-        loadTechnicians().then(() => { b.step = 2; renderClient(); });
+        loadTechnicians().then(() => {
+          // Coming from a technician's profile ("Reservar con X") -- the
+          // technician is already fixed, so skip re-asking for one.
+          b.step = b.staffLocked ? 3 : 2;
+          renderClient();
+        });
       } else if (b.step === 2) {
         b.selectedStaffId = el.dataset.id || undefined;
         renderClient();
       }
     };
   });
+  const backToLanding = document.getElementById("backToLanding");
+  if (backToLanding) backToLanding.onclick = () => { b.view = "landing"; b.error = null; renderClient(); };
   const back = document.getElementById("back");
-  if (back) back.onclick = () => { b.error = null; b.step -= 1; renderClient(); };
+  if (back) back.onclick = () => {
+    b.error = null;
+    if (b.step === 3 && b.staffLocked) {
+      // Back to service selection -- the locked technician might not
+      // offer whatever service gets picked next, so unlock and let the
+      // normal step 2 (technician selection) re-validate that.
+      b.staffLocked = false;
+      b.step = 1;
+    } else {
+      b.step -= 1;
+    }
+    renderClient();
+  };
   const next = document.getElementById("next");
   if (next) next.onclick = () => { b.step = 3; renderClient(); };
   const dateInput = document.getElementById("date");
@@ -525,7 +703,208 @@ async function doConfirm() {
 }
 
 function initClient() {
-  if (state.book.view === "step" && !state.book.services.length) loadBookServices();
+  const b = state.book;
+  if (b.view === "step" && !b.services.length) loadBookServices();
+  if (b.view === "landing" && !b.landingLoaded) loadLanding();
+}
+
+// ============================== LANDING PAGE ==============================
+
+function renderLanding() {
+  const b = state.book;
+  if (!b.landingLoaded) return `<div class="loading">Cargando...</div>`;
+  const tenant = b.tenant || {};
+  const vr = b.venueReviews || { average: null, count: 0, reviews: [] };
+  return `
+    <div class="landing-header">
+      <h1>${tenant.name || "Salon"}</h1>
+      ${tenant.address ? `<p class="address-line">📍 ${tenant.address}</p>` : ""}
+      ${vr.count ? `<div class="rating-badge"><span class="stars">★</span> ${vr.average} <span style="color:var(--muted);font-weight:400;">(${vr.count} reseñas)</span></div>` : ""}
+    </div>
+    ${b.venuePhotos.length ? `<div class="photo-gallery">${b.venuePhotos.map(p => `<img src="${p.image_path}" alt="${p.caption || ''}" />`).join("")}</div>` : ""}
+
+    <div class="section">
+      <h2>Servicios</h2>
+      ${b.services.map(s => `
+        <div class="service-row">
+          <div>
+            <div class="name">${s.name}</div>
+            <div class="meta">${s.duration_minutes} min${s.category ? " · " + s.category : ""}</div>
+          </div>
+          <div class="right">
+            <div class="price">${fmtMoney(s.price)}</div>
+            <button class="btn small" data-book-service="${s.id}">Reservar</button>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+
+    <div class="section">
+      <h2>Nuestro equipo</h2>
+      <div class="team-grid">
+        ${b.team.map(t => `
+          <div class="team-card" data-view-profile="${t.id}">
+            <div class="avatar-faceless">${initials(t.name)}</div>
+            <div class="name">${t.name}</div>
+          </div>
+        `).join("") || `<div class="empty">Aún no hay equipo publicado.</div>`}
+      </div>
+    </div>
+
+    <div class="section" style="padding-bottom: 90px;">
+      <h2>Reseñas</h2>
+      ${vr.count ? `<div class="rating-badge">${starString(vr.average)} ${vr.average} · ${vr.count} reseñas</div>` : ""}
+      ${vr.reviews.slice(0, 5).map(r => `
+        <div class="review-card">
+          <div class="head">
+            <div class="review-avatar">${initials(r.client_name)}</div>
+            <div>
+              <div class="name">${r.client_name}</div>
+              <div class="date">${new Date(r.created_at).toLocaleDateString()}</div>
+            </div>
+          </div>
+          <div class="stars">${starString(r.rating)}</div>
+          ${r.comment ? `<div class="comment">${r.comment}</div>` : ""}
+        </div>
+      `).join("") || `<div class="empty">Aún no hay reseñas.</div>`}
+    </div>
+
+    <div class="sticky-cta">
+      <div class="info">
+        <div class="biz">${tenant.name || "Salon"}</div>
+        <div class="count">${b.services.length} servicios disponibles</div>
+      </div>
+      <button class="btn" id="ctaBook">Reservar ahora</button>
+    </div>
+  `;
+}
+
+function wireLanding() {
+  const b = state.book;
+  const ctaBook = document.getElementById("ctaBook");
+  if (ctaBook) ctaBook.onclick = () => {
+    b.staffLocked = false;
+    b.selectedStaffId = undefined;
+    b.step = 1;
+    b.view = "step";
+    renderClient();
+  };
+  document.querySelectorAll("[data-book-service]").forEach(el => el.onclick = () => {
+    const service = b.services.find(s => s.id === el.dataset.bookService);
+    if (!service) return;
+    b.selectedService = service;
+    b.staffLocked = false;
+    b.selectedStaffId = undefined;
+    b.view = "step";
+    loadTechnicians().then(() => { b.step = 2; renderClient(); });
+  });
+  document.querySelectorAll("[data-view-profile]").forEach(el => el.onclick = () => openTeamProfile(el.dataset.viewProfile));
+}
+
+async function loadLanding() {
+  const b = state.book;
+  const [tenant, photos, reviews, team, services] = await Promise.all([
+    api("/tenant"),
+    api("/tenant/photos"),
+    api("/reviews/venue"),
+    api("/booking/team"),
+    b.services.length ? Promise.resolve(b.services) : api("/services"),
+  ]);
+  b.tenant = tenant;
+  b.venuePhotos = photos;
+  b.venueReviews = reviews;
+  b.team = team;
+  b.services = services;
+  b.landingLoaded = true;
+  renderClient();
+}
+
+// ============================ TECHNICIAN PROFILE ============================
+
+function openTeamProfile(staffId) {
+  const b = state.book;
+  b.profileStaffId = staffId;
+  b.profileStaff = null;
+  b.profilePortfolio = [];
+  b.profileReviews = null;
+  b.view = "team-profile";
+  renderClient();
+  loadTeamProfile();
+}
+
+function renderTeamProfile() {
+  const b = state.book;
+  if (!b.profileStaff) return `<div class="loading">Cargando perfil...</div>`;
+  const staff = b.profileStaff;
+  const pr = b.profileReviews || { average: null, count: 0, reviews: [] };
+  return `
+    <span class="back" id="backToLanding" style="margin:16px 0 0 20px;display:inline-block;">&larr; Volver</span>
+    <div class="profile-header">
+      <div class="avatar-faceless large">${initials(staff.name)}</div>
+      <h2 style="font-family:'Fraunces',serif;margin:10px 0 0;">${staff.name}</h2>
+      ${pr.count ? `<div class="rating-badge">${starString(pr.average)} ${pr.average} (${pr.count})</div>` : ""}
+      ${staff.bio ? `<p class="bio">${staff.bio}</p>` : ""}
+    </div>
+
+    <div class="section">
+      <h2>Portfolio</h2>
+      ${b.profilePortfolio.length ? `
+        <div class="portfolio-grid">${b.profilePortfolio.map(p => `<img src="${p.image_path}" alt="${p.caption || ''}" />`).join("")}</div>
+      ` : `<div class="empty">Este profesional aún no tiene portafolio.</div>`}
+    </div>
+
+    <div class="section" style="padding-bottom: 90px;">
+      <h2>Reseñas particulares</h2>
+      ${pr.reviews.map(r => `
+        <div class="review-card">
+          <div class="head">
+            <div class="review-avatar">${initials(r.client_name)}</div>
+            <div>
+              <div class="name">${r.client_name}</div>
+              <div class="date">${new Date(r.created_at).toLocaleDateString()}</div>
+            </div>
+          </div>
+          <div class="stars">${starString(r.rating)}</div>
+          ${r.comment ? `<div class="comment">${r.comment}</div>` : ""}
+        </div>
+      `).join("") || `<div class="empty">Aún no tiene reseñas.</div>`}
+    </div>
+
+    <div class="sticky-cta">
+      <div class="info">
+        <div class="biz">${staff.name}</div>
+      </div>
+      <button class="btn" id="bookWithStaff">Reservar con ${staff.name.split(" ")[0]}</button>
+    </div>
+  `;
+}
+
+function wireTeamProfile() {
+  const b = state.book;
+  const backBtn = document.getElementById("backToLanding");
+  if (backBtn) backBtn.onclick = () => { b.view = "landing"; renderClient(); };
+  const bookBtn = document.getElementById("bookWithStaff");
+  if (bookBtn) bookBtn.onclick = () => {
+    b.selectedStaffId = b.profileStaffId;
+    b.staffLocked = true;
+    b.selectedService = null;
+    b.step = 1;
+    b.view = "step";
+    renderClient();
+  };
+}
+
+async function loadTeamProfile() {
+  const b = state.book;
+  const [staff, portfolio, reviews] = await Promise.all([
+    api(`/booking/team/${b.profileStaffId}`),
+    api(`/booking/team/${b.profileStaffId}/portfolio`),
+    api(`/reviews/staff/${b.profileStaffId}`),
+  ]);
+  b.profileStaff = staff;
+  b.profilePortfolio = portfolio;
+  b.profileReviews = reviews;
+  renderClient();
 }
 
 // ============================== ADMIN PANEL ==============================
