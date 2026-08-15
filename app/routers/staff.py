@@ -100,6 +100,16 @@ def set_staff_services(
     return [s.id for s in services]
 
 
+@router.get("/{staff_id}/services", response_model=list[UUID])
+def get_staff_services(
+    staff_id: UUID,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    staff = _get_staff_or_404(db, tenant.id, staff_id)
+    return [s.id for s in staff.services]
+
+
 @router.put("/{staff_id}/working-hours", response_model=list[WorkingHourRead])
 def set_working_hours(
     staff_id: UUID,

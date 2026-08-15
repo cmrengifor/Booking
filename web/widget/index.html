@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reservar cita</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --ivory: #F6F1EC;
+    --wine: #6E2A3B;
+    --wine-dark: #56212F;
+    --gold: #B7935B;
+    --sage: #7C8B6F;
+    --ink: #2A2220;
+    --muted: #8A7C74;
+    --card: #FFFFFF;
+    --border: #E7DDD3;
+    --danger: #B3432E;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ivory);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+  header { padding: 24px 20px 12px; }
+  h1 { font-family: 'Fraunces', serif; font-weight: 600; font-size: 22px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 14px; margin: 0; }
+  .steps { display: flex; gap: 6px; padding: 0 20px 16px; }
+  .steps .dot { flex: 1; height: 4px; border-radius: 2px; background: var(--border); }
+  .steps .dot.done, .steps .dot.active { background: var(--wine); }
+  main { flex: 1; padding: 0 20px 100px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .card:hover { border-color: var(--gold); }
+  .card.selected { border-color: var(--wine); box-shadow: 0 0 0 1.5px var(--wine); }
+  .card .name { font-weight: 600; font-size: 15px; }
+  .card .meta { color: var(--muted); font-size: 13px; margin-top: 2px; font-family: 'IBM Plex Mono', monospace; }
+  .card .price { float: right; font-family: 'IBM Plex Mono', monospace; font-weight: 500; color: var(--wine); }
+  .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+  .any-card { border-color: var(--sage); background: #F4F6F1; }
+  .any-card .name { color: var(--sage); }
+  input[type=date] {
+    width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 14px; margin-bottom: 16px; background: var(--card);
+  }
+  .slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .slot {
+    padding: 10px 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px; cursor: pointer; background: var(--card);
+  }
+  .slot:hover { border-color: var(--gold); }
+  .slot.selected { background: var(--wine); color: white; border-color: var(--wine); }
+  label { display: block; font-size: 13px; font-weight: 500; margin: 12px 0 6px; }
+  input[type=text], input[type=tel], input[type=email] {
+    width: 100%; padding: 11px 12px; border: 1px solid var(--border); border-radius: 10px;
+    font-family: 'Inter', sans-serif; font-size: 14px;
+  }
+  footer {
+    position: sticky; bottom: 0; background: linear-gradient(to top, var(--ivory) 70%, transparent);
+    padding: 16px 20px 24px;
+  }
+  .btn {
+    width: 100%; padding: 14px; border: none; border-radius: 10px; background: var(--wine); color: white;
+    font-family: 'Inter', sans-serif; font-weight: 600; font-size: 15px; cursor: pointer;
+  }
+  .btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  .btn.secondary { background: transparent; color: var(--wine); border: 1px solid var(--wine); margin-top: 8px; }
+  .btn.danger { background: var(--danger); }
+  .back { color: var(--muted); font-size: 13px; cursor: pointer; margin-bottom: 12px; display: inline-block; }
+  .summary { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; }
+  .summary .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+  .summary .row .k { color: var(--muted); }
+  .success { text-align: center; padding: 40px 0; }
+  .success .icon { font-size: 40px; color: var(--sage); }
+  .error { color: var(--danger); font-size: 13px; margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; text-align: center; }
+  .loading { text-align: center; color: var(--muted); padding: 40px 0; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+const API = ""; // same-origin
+
+const params = new URLSearchParams(location.search);
+const manageApptId = params.get("appt");
+
+const state = {
+  view: manageApptId ? "manage" : "step",
+  step: 1,
+  services: [],
+  staff: [],
+  selectedService: null,
+  selectedStaffId: undefined, // undefined = any available
+  selectedDate: null,
+  slots: [],
+  selectedSlot: null,
+  hold: null,
+  appointment: null,
+  error: null,
+};
+
+async function api(path, opts) {
+  const res = await fetch(API + path, {
+    headers: { "Content-Type": "application/json" },
+    ...opts,
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const err = new Error((data && data.detail) || "Request failed");
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
+function fmtMoney(v) { return "$" + Number(v).toFixed(2); }
+function fmtTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+function fmtDateTime(iso) {
+  return new Date(iso).toLocaleString([], { weekday: "long", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+function render() {
+  const app = document.getElementById("app");
+  if (state.view === "manage") { app.innerHTML = renderManage(); wireManage(); return; }
+  app.innerHTML = `
+    <header>
+      <h1>Reservar cita</h1>
+      <p class="subtitle">${["", "Elige un servicio", "Elige tu estilista", "Elige fecha y hora", "Confirma tus datos"][state.step] || ""}</p>
+    </header>
+    <div class="steps">${[1,2,3,4].map(n => `<div class="dot ${n < state.step ? "done" : n === state.step ? "active" : ""}"></div>`).join("")}</div>
+    <main id="main"></main>
+  `;
+  const main = document.getElementById("main");
+  if (state.step === 1) main.innerHTML = renderStep1();
+  else if (state.step === 2) main.innerHTML = renderStep2();
+  else if (state.step === 3) main.innerHTML = renderStep3();
+  else if (state.step === 4) main.innerHTML = renderStep4();
+  else if (state.step === 5) main.innerHTML = renderSuccess();
+  wireStep();
+}
+
+function renderStep1() {
+  if (!state.services.length) return `<div class="loading">Cargando servicios...</div>`;
+  return state.services.map(s => `
+    <div class="card" data-id="${s.id}">
+      <span class="price">${fmtMoney(s.price)}</span>
+      <div class="name">${s.name}</div>
+      <div class="meta">${s.duration_minutes} min${s.category ? " · " + s.category : ""}</div>
+    </div>
+  `).join("");
+}
+
+function renderStep2() {
+  return `
+    <span class="back" id="back">&larr; Volver</span>
+    <div class="card any-card ${state.selectedStaffId === undefined ? "selected" : ""}" data-id="">
+      <div class="name">Cualquier disponible</div>
+      <div class="meta">La opción más rápida -- te asignamos a quien tenga espacio</div>
+    </div>
+    ${state.staff.map(s => `
+      <div class="card ${state.selectedStaffId === s.id ? "selected" : ""}" data-id="${s.id}">
+        <div class="name">${s.name}</div>
+      </div>
+    `).join("")}
+    <footer><button class="btn" id="next" ${state.selectedStaffId === null ? "disabled" : ""}>Continuar</button></footer>
+  `;
+}
+
+function renderStep3() {
+  const today = new Date().toISOString().slice(0, 10);
+  return `
+    <span class="back" id="back">&larr; Volver</span>
+    <input type="date" id="date" min="${today}" value="${state.selectedDate || ""}" />
+    ${state.loadingSlots ? `<div class="loading">Buscando horarios...</div>` : renderSlots()}
+  `;
+}
+
+function renderSlots() {
+  if (!state.selectedDate) return `<div class="hint">Selecciona una fecha para ver horarios disponibles.</div>`;
+  const uniqueTimes = [...new Map(state.slots.map(s => [s.start_time, s])).values()]
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  if (!uniqueTimes.length) return `<div class="empty">No hay horarios disponibles ese día. Prueba otra fecha.</div>`;
+  return `<div class="slots">${uniqueTimes.map(s => `
+    <div class="slot ${state.selectedSlot && state.selectedSlot.start_time === s.start_time ? "selected" : ""}" data-time="${s.start_time}">
+      ${fmtTime(s.start_time)}
+    </div>`).join("")}</div>
+    ${state.error ? `<div class="error">${state.error}</div>` : ""}
+  `;
+}
+
+function renderStep4() {
+  const staffName = state.hold.staff_id === state.selectedStaffId
+    ? (state.staff.find(s => s.id === state.selectedStaffId) || {}).name
+    : (state.staff.find(s => s.id === state.hold.staff_id) || {}).name || "Por confirmar";
+  return `
+    <span class="back" id="back">&larr; Volver</span>
+    <div class="summary">
+      <div class="row"><span class="k">Servicio</span><span>${state.selectedService.name}</span></div>
+      <div class="row"><span class="k">Estilista</span><span>${staffName}</span></div>
+      <div class="row"><span class="k">Fecha y hora</span><span>${fmtDateTime(state.hold.start_time)}</span></div>
+      <div class="row"><span class="k">Precio</span><span>${fmtMoney(state.selectedService.price)}</span></div>
+    </div>
+    <label>Nombre completo</label>
+    <input type="text" id="c_name" placeholder="Tu nombre" />
+    <label>WhatsApp / Teléfono</label>
+    <input type="tel" id="c_phone" placeholder="+57 300 000 0000" />
+    <label>Email (opcional)</label>
+    <input type="email" id="c_email" placeholder="tu@email.com" />
+    ${state.error ? `<div class="error">${state.error}</div>` : ""}
+    <footer><button class="btn" id="confirm">Confirmar reserva</button></footer>
+  `;
+}
+
+function renderSuccess() {
+  const a = state.appointment;
+  const staffName = (state.staff.find(s => s.id === a.staff_id) || {}).name || "";
+  return `
+    <div class="success">
+      <div class="icon">&#10003;</div>
+      <h2 style="font-family:'Fraunces',serif;">¡Reserva confirmada!</h2>
+      <div class="summary" style="text-align:left;">
+        <div class="row"><span class="k">Estilista asignada</span><span>${staffName}</span></div>
+        <div class="row"><span class="k">Fecha y hora</span><span>${fmtDateTime(a.start_time)}</span></div>
+        <div class="row"><span class="k">Precio</span><span>${fmtMoney(a.price_total)}</span></div>
+      </div>
+      <p class="hint">Guarda este enlace para gestionar tu cita:<br>
+        <a href="?appt=${a.id}">${location.origin}${location.pathname}?appt=${a.id}</a>
+      </p>
+    </div>
+  `;
+}
+
+function renderManage() {
+  if (!manageApptId) return `<div class="loading">Cita no encontrada.</div>`;
+  if (state.manageError) return `<main style="padding:24px 20px;"><div class="error">${state.manageError}</div></main>`;
+  if (!state.manageAppt) return `<div class="loading">Cargando tu cita...</div>`;
+  const a = state.manageAppt;
+  const cancelled = a.status === "cancelled";
+  return `
+    <header><h1>Tu cita</h1></header>
+    <main style="padding:0 20px;">
+      <div class="summary">
+        <div class="row"><span class="k">Estado</span><span>${a.status}</span></div>
+        <div class="row"><span class="k">Fecha y hora</span><span>${fmtDateTime(a.start_time)}</span></div>
+        <div class="row"><span class="k">Precio</span><span>${fmtMoney(a.price_total)}</span></div>
+      </div>
+      ${cancelled ? "" : `
+        <button class="btn danger" id="cancelBtn">Cancelar cita</button>
+      `}
+      ${state.manageActionError ? `<div class="error">${state.manageActionError}</div>` : ""}
+    </main>
+  `;
+}
+
+function wireManage() {
+  if (!manageApptId) return;
+  if (!state.manageAppt && !state.manageError) {
+    api(`/booking/appointments/${manageApptId}`).then(a => {
+      state.manageAppt = a; render();
+    }).catch(e => { state.manageError = e.message; render(); });
+  }
+  const cancelBtn = document.getElementById("cancelBtn");
+  if (cancelBtn) cancelBtn.onclick = async () => {
+    try {
+      const a = await api(`/booking/appointments/${manageApptId}/cancel`, { method: "POST", body: JSON.stringify({}) });
+      state.manageAppt = a;
+      state.manageActionError = null;
+    } catch (e) {
+      state.manageActionError = e.message;
+    }
+    render();
+  };
+}
+
+function wireStep() {
+  document.querySelectorAll(".card[data-id]").forEach(el => {
+    el.onclick = () => {
+      if (state.step === 1) {
+        state.selectedService = state.services.find(s => s.id === el.dataset.id);
+        loadStaff().then(() => { state.step = 2; render(); });
+      } else if (state.step === 2) {
+        state.selectedStaffId = el.dataset.id || undefined;
+        render();
+      }
+    };
+  });
+  const back = document.getElementById("back");
+  if (back) back.onclick = () => { state.error = null; state.step -= 1; render(); };
+  const next = document.getElementById("next");
+  if (next) next.onclick = () => { state.step = 3; render(); };
+  const dateInput = document.getElementById("date");
+  if (dateInput) dateInput.onchange = async (e) => {
+    state.selectedDate = e.target.value;
+    state.loadingSlots = true;
+    render();
+    await loadSlots();
+    state.loadingSlots = false;
+    render();
+  };
+  document.querySelectorAll(".slot").forEach(el => {
+    el.onclick = () => selectSlot(el.dataset.time);
+  });
+  const confirmBtn = document.getElementById("confirm");
+  if (confirmBtn) confirmBtn.onclick = doConfirm;
+}
+
+async function loadServices() {
+  state.services = await api("/services");
+  render();
+}
+
+async function loadStaff() {
+  state.staff = await api(`/booking/staff?service_id=${state.selectedService.id}`);
+}
+
+async function loadSlots() {
+  const staffParam = state.selectedStaffId ? `&staff_id=${state.selectedStaffId}` : "";
+  state.slots = await api(`/booking/availability?service_id=${state.selectedService.id}&target_date=${state.selectedDate}${staffParam}`);
+}
+
+async function selectSlot(startTime) {
+  state.error = null;
+  try {
+    const hold = await api("/booking/hold", {
+      method: "POST",
+      body: JSON.stringify({
+        service_id: state.selectedService.id,
+        start_time: startTime,
+        staff_id: state.selectedStaffId || null,
+      }),
+    });
+    state.hold = hold;
+    state.selectedSlot = { start_time: startTime };
+    state.step = 4;
+    render();
+  } catch (e) {
+    state.error = e.message;
+    await loadSlots();
+    render();
+  }
+}
+
+async function doConfirm() {
+  state.error = null;
+  const name = document.getElementById("c_name").value.trim();
+  const phone = document.getElementById("c_phone").value.trim();
+  const email = document.getElementById("c_email").value.trim();
+  if (!name || !phone) {
+    state.error = "Nombre y teléfono son obligatorios.";
+    render();
+    return;
+  }
+  try {
+    const appt = await api("/booking/confirm", {
+      method: "POST",
+      body: JSON.stringify({
+        hold_token: state.hold.hold_token,
+        service_id: state.selectedService.id,
+        client: { name, phone, email: email || null },
+        booking_mode: state.selectedStaffId ? "client_choice" : "any_available",
+      }),
+    });
+    state.appointment = appt;
+    state.step = 5;
+    render();
+  } catch (e) {
+    state.error = e.message;
+    render();
+  }
+}
+
+render();
+if (state.view === "step") loadServices();
+</script>
+</body>
+</html>
