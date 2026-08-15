@@ -18,6 +18,63 @@ HOLD_DURATION_MINUTES = 5
 MAX_ANY_AVAILABLE_RETRIES = 2
 
 
+def _check_cutoff(tenant: Tenant, appt: Appointment, action: str) -> None:
+    cutoff = timedelta(hours=tenant.cancellation_cutoff_hours)
+    if appt.start_time - datetime.now(timezone.utc) < cutoff:
+        raise HTTPException(
+            status_code=409,
+            detail=f"{action} must be made at least {tenant.cancellation_cutoff_hours} hours in advance",
+        )
+
+
+def cancel_appointment(db: Session, tenant: Tenant, appointment_id: UUID, reason: str | None) -> Appointment:
+    appt = get_appointment_or_404(db, tenant.id, appointment_id)
+    if appt.status != "confirmed":
+        raise HTTPException(status_code=409, detail="Only confirmed appointments can be cancelled")
+    _check_cutoff(tenant, appt, "Cancellations")
+
+    appt.status = "cancelled"
+    appt.cancellation_reason = reason
+    appt.cancelled_at = datetime.now(timezone.utc)
+    db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation"))
+    db.commit()
+    db.refresh(appt)
+    return appt
+
+
+def reschedule_appointment(db: Session, tenant: Tenant, appointment_id: UUID, hold_token: str) -> Appointment:
+    appt = get_appointment_or_404(db, tenant.id, appointment_id)
+    if appt.status != "confirmed":
+        raise HTTPException(status_code=409, detail="Only confirmed appointments can be rescheduled")
+    _check_cutoff(tenant, appt, "Reschedules")
+
+    hold = db.execute(
+        select(BookingHold).where(BookingHold.session_token == hold_token, BookingHold.tenant_id == tenant.id)
+    ).scalar_one_or_none()
+    if hold is None:
+        raise HTTPException(status_code=404, detail="Hold not found or already used")
+    if hold.expires_at < datetime.now(timezone.utc):
+        db.delete(hold)
+        db.commit()
+        raise HTTPException(status_code=409, detail="Hold expired, please pick a new time")
+
+    hold_id, new_staff_id, new_start, new_end = hold.id, hold.staff_id, hold.start_time, hold.end_time
+    appt.staff_id = new_staff_id
+    appt.start_time = new_start
+    appt.end_time = new_end
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="That new slot was just taken, please pick another time.")
+
+    db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="confirmation"))
+    db.execute(BookingHold.__table__.delete().where(BookingHold.id == hold_id))
+    db.commit()
+    db.refresh(appt)
+    return appt
+
+
 def get_appointment_or_404(db: Session, tenant_id: UUID, appointment_id: UUID) -> Appointment:
     appt = db.get(Appointment, appointment_id)
     if appt is None or appt.tenant_id != tenant_id:

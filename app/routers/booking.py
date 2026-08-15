@@ -12,9 +12,11 @@ from app.queries.availability import get_available_slots
 from app.schemas import (
     AppointmentRead,
     AvailabilitySlot,
+    CancelRequest,
     ConfirmCreate,
     HoldCreate,
     HoldRead,
+    RescheduleCreate,
     StaffRead,
 )
 
@@ -85,3 +87,23 @@ def get_appointment(
     tenant: Tenant = Depends(get_current_tenant),
 ):
     return booking_service.get_appointment_or_404(db, tenant.id, appointment_id)
+
+
+@router.post("/appointments/{appointment_id}/cancel", response_model=AppointmentRead)
+def cancel_appointment(
+    appointment_id: UUID,
+    payload: CancelRequest,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    return booking_service.cancel_appointment(db, tenant, appointment_id, payload.reason)
+
+
+@router.post("/appointments/{appointment_id}/reschedule", response_model=AppointmentRead)
+def reschedule_appointment(
+    appointment_id: UUID,
+    payload: RescheduleCreate,
+    db: Session = Depends(get_db),
+    tenant: Tenant = Depends(get_current_tenant),
+):
+    return booking_service.reschedule_appointment(db, tenant, appointment_id, payload.hold_token)
