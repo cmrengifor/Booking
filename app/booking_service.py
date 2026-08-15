@@ -12,6 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.models import Appointment, AppointmentService, BookingHold, Client, Notification, Service, Staff, Tenant
+from app.notifications import send_notification
 from app.queries.availability import assign_least_booked_staff, get_available_slots
 from app.schemas import AppointmentDetailRead, ClientInfo
 
@@ -37,9 +38,11 @@ def cancel_appointment(db: Session, tenant: Tenant, appointment_id: UUID, reason
     appt.status = "cancelled"
     appt.cancellation_reason = reason
     appt.cancelled_at = datetime.now(timezone.utc)
-    db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation"))
+    notification = Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation")
+    db.add(notification)
     db.commit()
     db.refresh(appt)
+    send_notification(db, notification)
     return appt
 
 
@@ -69,10 +72,12 @@ def reschedule_appointment(db: Session, tenant: Tenant, appointment_id: UUID, ho
         db.rollback()
         raise HTTPException(status_code=409, detail="That new slot was just taken, please pick another time.")
 
-    db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="confirmation"))
+    notification = Notification(appointment_id=appt.id, channel="whatsapp", type="confirmation")
+    db.add(notification)
     db.execute(BookingHold.__table__.delete().where(BookingHold.id == hold_id))
     db.commit()
     db.refresh(appt)
+    send_notification(db, notification)
     return appt
 
 
@@ -225,10 +230,12 @@ def confirm_booking(
             appointment_id=appt.id, service_id=service_id_, duration_minutes=duration_minutes, price=price
         )
     )
-    db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="confirmation"))
+    notification = Notification(appointment_id=appt.id, channel="whatsapp", type="confirmation")
+    db.add(notification)
     db.execute(BookingHold.__table__.delete().where(BookingHold.id == hold_id))
     db.commit()
     db.refresh(appt)
+    send_notification(db, notification)
     return appt
 
 
@@ -253,12 +260,16 @@ def update_appointment_status(
     """
     appt = get_appointment_or_404(db, tenant.id, appointment_id)
     appt.status = status
+    notification = None
     if status == "cancelled":
         appt.cancellation_reason = cancellation_reason
         appt.cancelled_at = datetime.now(timezone.utc)
-        db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation"))
+        notification = Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation")
+        db.add(notification)
     db.commit()
     db.refresh(appt)
+    if notification is not None:
+        send_notification(db, notification)
     return appt
 
 
