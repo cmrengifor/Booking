@@ -176,3 +176,10 @@ class ManualBookingCreate(BaseModel):
     staff_id: UUID | None = None  # None = "any available"
     start_time: datetime
     client: ClientInfo
+
+
+class AppointmentDetailRead(AppointmentRead):
+    client_name: str
+    client_phone: str | None = None
+    staff_name: str
+    service_names: list[str]

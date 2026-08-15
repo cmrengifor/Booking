@@ -2,17 +2,18 @@
 booking screen, so the two surfaces never diverge (per the brief).
 """
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.models import Appointment, AppointmentService, BookingHold, Client, Notification, Service, Staff, Tenant
 from app.queries.availability import assign_least_booked_staff, get_available_slots
-from app.schemas import ClientInfo
+from app.schemas import AppointmentDetailRead, ClientInfo
 
 HOLD_DURATION_MINUTES = 5
 MAX_ANY_AVAILABLE_RETRIES = 2
@@ -229,3 +230,81 @@ def confirm_booking(
     db.commit()
     db.refresh(appt)
     return appt
+
+
+def manual_book(
+    db: Session, tenant: Tenant, service_id: UUID, staff_id: UUID | None, start_time: datetime, client_info: ClientInfo
+) -> Appointment:
+    """Staff booking screen entry point -- same hold-then-confirm path as
+    the public widget, so a walk-in booked by staff is exactly as
+    overlap-safe as a client's self-serve booking.
+    """
+    hold = create_hold(db, tenant, service_id, start_time, staff_id)
+    booking_mode = "client_choice" if staff_id is not None else "any_available"
+    return confirm_booking(db, tenant, hold.session_token, service_id, client_info, booking_mode)
+
+
+def update_appointment_status(
+    db: Session, tenant: Tenant, appointment_id: UUID, status: str, cancellation_reason: str | None
+) -> Appointment:
+    """Staff-side status change -- no cutoff enforcement, unlike the
+    client-facing cancel/reschedule endpoints. Staff can always mark an
+    appointment complete/no-show/cancelled regardless of timing.
+    """
+    appt = get_appointment_or_404(db, tenant.id, appointment_id)
+    appt.status = status
+    if status == "cancelled":
+        appt.cancellation_reason = cancellation_reason
+        appt.cancelled_at = datetime.now(timezone.utc)
+        db.add(Notification(appointment_id=appt.id, channel="whatsapp", type="cancellation"))
+    db.commit()
+    db.refresh(appt)
+    return appt
+
+
+def list_appointments_detailed(
+    db: Session, tenant: Tenant, start_date: date, end_date: date
+) -> list[AppointmentDetailRead]:
+    """Day/week calendar view across all staff. Bounds are resolved in the
+    tenant's own timezone (not the DB session's) for the same reason the
+    availability engine does -- see app/queries/availability.py.
+    """
+    tz = ZoneInfo(tenant.timezone)
+    range_start = datetime.combine(start_date, time.min, tzinfo=tz)
+    range_end = datetime.combine(end_date, time.min, tzinfo=tz) + timedelta(days=1)
+
+    stmt = (
+        select(Appointment)
+        .where(
+            Appointment.tenant_id == tenant.id,
+            Appointment.start_time >= range_start,
+            Appointment.start_time < range_end,
+        )
+        .options(
+            selectinload(Appointment.client),
+            selectinload(Appointment.staff),
+            selectinload(Appointment.services).selectinload(AppointmentService.service),
+        )
+        .order_by(Appointment.start_time)
+    )
+    appointments = db.execute(stmt).scalars().all()
+    return [
+        AppointmentDetailRead(
+            id=appt.id,
+            staff_id=appt.staff_id,
+            client_id=appt.client_id,
+            start_time=appt.start_time,
+            end_time=appt.end_time,
+            status=appt.status,
+            booking_mode=appt.booking_mode,
+            price_total=appt.price_total,
+            created_at=appt.created_at,
+            cancelled_at=appt.cancelled_at,
+            cancellation_reason=appt.cancellation_reason,
+            client_name=appt.client.name,
+            client_phone=appt.client.phone,
+            staff_name=appt.staff.name,
+            service_names=[aps.service.name for aps in appt.services],
+        )
+        for appt in appointments
+    ]
