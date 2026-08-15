@@ -262,6 +262,9 @@ const state = {
     appointments: [],
     bookingModal: null,
     error: null,
+    tenant: null,
+    venuePhotos: [],
+    settingsError: null,
   },
   notifications: {
     since: new Date().toISOString(), // only alert on bookings from now on, not history
@@ -915,7 +918,7 @@ function renderAdmin() {
     <h1>Panel del salón</h1>
     <p class="sub">Servicios, personal, horarios y reservas</p>
     <div class="tabs">
-      ${["services:Servicios", "staff:Personal", "hours:Horarios", "calendar:Reservas"].map(t => {
+      ${["services:Servicios", "staff:Personal", "hours:Horarios", "calendar:Reservas", "settings:Ajustes"].map(t => {
         const [key, label] = t.split(":");
         return `<div class="tab ${a.tab === key ? "active" : ""}" data-tab="${key}">${label}</div>`;
       }).join("")}
@@ -928,6 +931,7 @@ function renderAdmin() {
   else if (a.tab === "staff") panel.innerHTML = renderAdminStaff();
   else if (a.tab === "hours") panel.innerHTML = renderAdminHours();
   else if (a.tab === "calendar") panel.innerHTML = renderAdminCalendar();
+  else if (a.tab === "settings") panel.innerHTML = renderAdminSettings();
   wireAdminTab();
   if (a.bookingModal) renderBookingModal();
 }
@@ -968,6 +972,7 @@ function renderAdminStaff() {
           <div class="meta">${s.phone || ""}</div>
         </div>
         <button class="btn small ghost" data-services="${s.id}">Servicios</button>
+        <button class="btn small ghost" data-profile="${s.id}">Perfil público</button>
         <button class="btn small ghost" data-toggle-staff="${s.id}" data-active="${s.active}">${s.active ? "Desactivar" : "Activar"}</button>
       </div>
     `).join("") || `<div class="empty">Aún no hay personal.</div>`}
@@ -1040,6 +1045,32 @@ function renderAdminCalendar() {
         ` : ""}
       </div>
     `).join("") || `<div class="empty">Sin reservas para este día.</div>`}
+  `;
+}
+
+function renderAdminSettings() {
+  const a = state.admin;
+  const t = a.tenant || {};
+  return `
+    <h3 style="font-size:14px;margin:0 0 12px;">Información del salón</h3>
+    <form class="inline" id="settingsForm" style="grid-template-columns: 1fr 1fr;">
+      <input name="name" placeholder="Nombre del salón" value="${t.name || ""}" required />
+      <input name="address" placeholder="Dirección" value="${t.address || ""}" />
+      <button class="btn" type="submit" style="grid-column: 1 / -1;">Guardar</button>
+    </form>
+    ${a.settingsError ? `<div class="error">${a.settingsError}</div>` : ""}
+    <hr style="border:none;border-top:1px solid var(--border);margin:20px 0;" />
+    <h3 style="font-size:14px;margin:0 0 12px;">Fotos del local</h3>
+    <p class="sub" style="margin:-6px 0 12px;">Fachada e interior -- ayudan a los clientes a ubicar el local y saber qué esperar.</p>
+    <div class="portfolio-grid" style="margin-bottom:14px;">
+      ${a.venuePhotos.map(p => `
+        <div style="position:relative;">
+          <img src="${p.image_path}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;" />
+          <button class="btn small danger" data-del-venue-photo="${p.id}" style="position:absolute;top:4px;right:4px;padding:2px 8px;">×</button>
+        </div>
+      `).join("") || `<div class="empty">Sin fotos aún.</div>`}
+    </div>
+    <input type="file" id="venuePhotoInput" accept="image/*" />
   `;
 }
 
@@ -1148,6 +1179,7 @@ function wireAdminTab() {
       await loadAdminStaff(); renderAdmin();
     });
     document.querySelectorAll("[data-services]").forEach(btn => btn.onclick = () => openServicesModal(btn.dataset.services));
+    document.querySelectorAll("[data-profile]").forEach(btn => btn.onclick = () => openProfileModal(btn.dataset.profile));
   } else if (a.tab === "hours") {
     const pick = document.getElementById("hoursStaffPick");
     if (pick) pick.onchange = async (e) => { a.hoursStaffId = e.target.value; await loadAdminHours(); renderAdmin(); };
@@ -1195,6 +1227,30 @@ function wireAdminTab() {
       await api(`/appointments/${btn.dataset.status}/status`, { method: "PATCH", body: JSON.stringify({ status: btn.dataset.set }) });
       await loadAdminCalendar(); renderAdmin();
     });
+  } else if (a.tab === "settings") {
+    document.getElementById("settingsForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      try {
+        await api("/tenant", { method: "PATCH", body: JSON.stringify({
+          name: f.get("name"), address: f.get("address") || null,
+        }) });
+        a.settingsError = null;
+        await loadAdminSettings(); renderAdmin();
+      } catch (err) { a.settingsError = err.message; renderAdmin(); }
+    };
+    document.getElementById("venuePhotoInput").onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("file", file);
+      await api("/tenant/photos", { method: "POST", body: form });
+      await loadAdminSettings(); renderAdmin();
+    };
+    document.querySelectorAll("[data-del-venue-photo]").forEach(btn => btn.onclick = async () => {
+      await api(`/tenant/photos/${btn.dataset.delVenuePhoto}`, { method: "DELETE" });
+      await loadAdminSettings(); renderAdmin();
+    });
   }
 }
 
@@ -1221,6 +1277,61 @@ async function openServicesModal(staffId) {
   };
 }
 
+async function openProfileModal(staffId) {
+  const a = state.admin;
+  const staff = a.staffList.find(s => s.id === staffId);
+  const portfolio = await api(`/booking/team/${staffId}/portfolio`);
+  const wrap = document.createElement("div");
+  wrap.className = "modal-bg";
+
+  function renderModalBody() {
+    wrap.innerHTML = `<div class="modal">
+      <h3 style="margin-top:0;">Perfil público de ${staff.name}</h3>
+      <p class="sub" style="margin:-6px 0 10px;">Sin fotos personales -- solo bio y trabajos, tal como lo ve el cliente.</p>
+      <label>Bio</label>
+      <textarea id="bioInput" placeholder="Breve presentación (opcional)">${staff.bio || ""}</textarea>
+      <button class="btn small" id="saveBio" style="margin-top:8px;">Guardar bio</button>
+      <hr style="border:none;border-top:1px solid var(--border);margin:16px 0;" />
+      <label>Portfolio</label>
+      <div class="portfolio-grid" style="margin:8px 0;">
+        ${portfolio.map(p => `
+          <div style="position:relative;">
+            <img src="${p.image_path}" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;" />
+            <button class="btn small danger" data-del-portfolio="${p.id}" style="position:absolute;top:4px;right:4px;padding:2px 8px;">×</button>
+          </div>
+        `).join("") || `<div class="empty">Sin trabajos aún.</div>`}
+      </div>
+      <input type="file" id="portfolioInput" accept="image/*" />
+      <div style="display:flex;gap:8px;margin-top:16px;">
+        <button class="btn ghost" id="closeProfile">Cerrar</button>
+      </div>
+    </div>`;
+    document.getElementById("closeProfile").onclick = () => wrap.remove();
+    document.getElementById("saveBio").onclick = async () => {
+      const bio = document.getElementById("bioInput").value.trim();
+      staff.bio = await api(`/staff/${staffId}`, { method: "PATCH", body: JSON.stringify({ bio: bio || null }) }).then(s => s.bio);
+    };
+    document.getElementById("portfolioInput").onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const form = new FormData();
+      form.append("file", file);
+      const image = await api(`/staff/${staffId}/portfolio`, { method: "POST", body: form });
+      portfolio.push(image);
+      renderModalBody();
+    };
+    wrap.querySelectorAll("[data-del-portfolio]").forEach(btn => btn.onclick = async () => {
+      await api(`/staff/${staffId}/portfolio/${btn.dataset.delPortfolio}`, { method: "DELETE" });
+      const idx = portfolio.findIndex(p => p.id === btn.dataset.delPortfolio);
+      if (idx >= 0) portfolio.splice(idx, 1);
+      renderModalBody();
+    });
+  }
+
+  document.body.appendChild(wrap);
+  renderModalBody();
+}
+
 async function loadAdminServices() { state.admin.services = await api("/services?include_inactive=true"); }
 async function loadAdminStaff() { state.admin.staffList = await api("/staff?include_inactive=true"); }
 async function loadAdminHours() {
@@ -1230,6 +1341,11 @@ async function loadAdminHours() {
   a.timeOff = await api(`/staff/${a.hoursStaffId}/time-off`);
 }
 async function loadAdminCalendar() { state.admin.appointments = await api(`/appointments?start_date=${state.admin.calendarDate}`); }
+async function loadAdminSettings() {
+  const a = state.admin;
+  a.tenant = await api("/tenant");
+  a.venuePhotos = await api("/tenant/photos");
+}
 
 async function loadAdminTab() {
   const a = state.admin;
@@ -1241,6 +1357,7 @@ async function loadAdminTab() {
     await loadAdminHours();
   }
   if (a.tab === "calendar") { if (!a.services.length) await loadAdminServices(); if (!a.staffList.length) await loadAdminStaff(); await loadAdminCalendar(); }
+  if (a.tab === "settings" && !a.tenant) await loadAdminSettings();
   renderAdmin();
 }
 
