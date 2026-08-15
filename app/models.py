@@ -43,6 +43,7 @@ class Tenant(Base):
     whatsapp_number: Mapped[str | None] = mapped_column(Text)
     plan_tier: Mapped[str] = mapped_column(Text, default="starter")
     status: Mapped[str] = mapped_column(Text, default="trial")
+    cancellation_cutoff_hours: Mapped[int] = mapped_column(Integer, default=24)
     created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
 
     staff: Mapped[list["Staff"]] = relationship(back_populates="tenant")
@@ -121,3 +122,90 @@ class Service(Base):
 
     tenant: Mapped["Tenant"] = relationship(back_populates="services")
     staff: Mapped[list["Staff"]] = relationship(secondary=staff_services, back_populates="services")
+
+
+class Client(Base):
+    __tablename__ = "clients"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(Text)
+    phone: Mapped[str | None] = mapped_column(Text)
+    email: Mapped[str | None] = mapped_column(Text)
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+
+
+class Appointment(Base):
+    __tablename__ = "appointments"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"))
+    client_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clients.id"))
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("staff.id"))
+    booking_mode: Mapped[str] = mapped_column(Text, default="client_choice")
+    start_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+    end_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+    status: Mapped[str] = mapped_column(Text, default="confirmed")
+    price_total: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    deposit_paid: Mapped[bool] = mapped_column(Boolean, default=False)
+    cancellation_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())
+    cancelled_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+
+    client: Mapped["Client"] = relationship()
+    staff: Mapped["Staff"] = relationship()
+    services: Mapped[list["AppointmentService"]] = relationship(
+        back_populates="appointment", cascade="all, delete-orphan"
+    )
+
+
+class AppointmentService(Base):
+    __tablename__ = "appointment_services"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    appointment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("appointments.id", ondelete="CASCADE")
+    )
+    service_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("services.id"))
+    duration_minutes: Mapped[int] = mapped_column(Integer)
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+
+    appointment: Mapped["Appointment"] = relationship(back_populates="services")
+    service: Mapped["Service"] = relationship()
+
+
+class BookingHold(Base):
+    __tablename__ = "booking_holds"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"))
+    staff_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("staff.id"))
+    start_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+    end_time: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+    session_token: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True))
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    appointment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("appointments.id", ondelete="CASCADE")
+    )
+    channel: Mapped[str] = mapped_column(Text)
+    type: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(Text, default="pending")
+    sent_at: Mapped[datetime | None] = mapped_column(TIMESTAMP(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True), server_default=func.now())

@@ -107,3 +107,72 @@ class TimeOffRead(TimeOffCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+
+
+class AvailabilitySlot(BaseModel):
+    staff_id: UUID
+    start_time: datetime
+    end_time: datetime
+
+
+class HoldCreate(BaseModel):
+    service_id: UUID
+    start_time: datetime
+    staff_id: UUID | None = None  # None = "any available"
+
+
+class HoldRead(BaseModel):
+    hold_token: str
+    staff_id: UUID
+    start_time: datetime
+    end_time: datetime
+    expires_at: datetime
+
+
+class ClientInfo(BaseModel):
+    name: str
+    phone: str
+    email: str | None = None
+
+
+class ConfirmCreate(BaseModel):
+    hold_token: str
+    service_id: UUID
+    client: ClientInfo
+    booking_mode: str = Field(default="client_choice", pattern="^(client_choice|any_available)$")
+
+
+class RescheduleCreate(BaseModel):
+    hold_token: str
+
+
+class CancelRequest(BaseModel):
+    reason: str | None = None
+
+
+class AppointmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    staff_id: UUID
+    client_id: UUID
+    start_time: datetime
+    end_time: datetime
+    status: str
+    booking_mode: str
+    price_total: Decimal
+    created_at: datetime
+    cancelled_at: datetime | None = None
+    cancellation_reason: str | None = None
+
+
+class AppointmentStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(confirmed|completed|no_show|cancelled)$")
+    cancellation_reason: str | None = None
+
+
+class ManualBookingCreate(BaseModel):
+    service_id: UUID
+    staff_id: UUID | None = None  # None = "any available"
+    start_time: datetime
+    client: ClientInfo
