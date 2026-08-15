@@ -24,11 +24,15 @@ app.include_router(staff.router)
 app.include_router(booking.router)
 app.include_router(appointments.router)
 
-WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-app.mount("/widget", StaticFiles(directory=WEB_DIR / "widget", html=True), name="widget")
-app.mount("/admin", StaticFiles(directory=WEB_DIR / "admin", html=True), name="admin")
-
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# Mounted last and at "/" so it only catches paths none of the routes
+# above matched -- a single-page app (client widget + staff panel,
+# switchable in-app) rather than two separate sites under /widget and
+# /admin.
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+app.mount("/", StaticFiles(directory=WEB_DIR / "app", html=True), name="app")
