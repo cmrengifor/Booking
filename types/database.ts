@@ -98,6 +98,13 @@ export type Database = {
             foreignKeyName: "appointment_events_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "appointment_events_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -170,6 +177,13 @@ export type Database = {
             foreignKeyName: "appointments_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "appointments_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -177,8 +191,22 @@ export type Database = {
             foreignKeyName: "appointments_salon_membership_id_fkey"
             columns: ["salon_membership_id"]
             isOneToOne: false
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
+          },
+          {
+            foreignKeyName: "appointments_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
             referencedRelation: "salon_memberships"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_analytics"
+            referencedColumns: ["service_id"]
           },
           {
             foreignKeyName: "appointments_service_id_fkey"
@@ -241,8 +269,22 @@ export type Database = {
             foreignKeyName: "artist_profiles_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "artist_profiles_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "artist_profiles_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: true
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
           },
           {
             foreignKeyName: "artist_profiles_salon_membership_id_fkey"
@@ -286,6 +328,13 @@ export type Database = {
             foreignKeyName: "brands_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "brands_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -320,6 +369,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customers_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
           },
           {
             foreignKeyName: "customers_salon_id_fkey"
@@ -363,6 +419,13 @@ export type Database = {
             foreignKeyName: "faqs_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "faqs_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -391,6 +454,13 @@ export type Database = {
           unsubscribed_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "newsletter_subscribers_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
           {
             foreignKeyName: "newsletter_subscribers_salon_id_fkey"
             columns: ["salon_id"]
@@ -448,6 +518,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "appointments"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
           },
           {
             foreignKeyName: "notifications_salon_id_fkey"
@@ -533,8 +610,22 @@ export type Database = {
             foreignKeyName: "portfolio_items_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "portfolio_items_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_items_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
           },
           {
             foreignKeyName: "portfolio_items_salon_membership_id_fkey"
@@ -638,8 +729,22 @@ export type Database = {
             foreignKeyName: "reviews_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "reviews_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
           },
           {
             foreignKeyName: "reviews_salon_membership_id_fkey"
@@ -693,6 +798,13 @@ export type Database = {
             foreignKeyName: "salon_memberships_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "salon_memberships_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -721,6 +833,13 @@ export type Database = {
           salon_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salon_weekly_hours_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
           {
             foreignKeyName: "salon_weekly_hours_salon_id_fkey"
             columns: ["salon_id"]
@@ -820,6 +939,13 @@ export type Database = {
             foreignKeyName: "service_categories_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "service_categories_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -870,8 +996,22 @@ export type Database = {
             foreignKeyName: "service_variants_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "service_variants_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_variants_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_analytics"
+            referencedColumns: ["service_id"]
           },
           {
             foreignKeyName: "service_variants_service_id_fkey"
@@ -943,6 +1083,13 @@ export type Database = {
             foreignKeyName: "services_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "services_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
           },
@@ -981,8 +1128,22 @@ export type Database = {
             foreignKeyName: "staff_time_off_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "staff_time_off_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_time_off_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
           },
           {
             foreignKeyName: "staff_time_off_salon_membership_id_fkey"
@@ -1029,8 +1190,22 @@ export type Database = {
             foreignKeyName: "staff_weekly_hours_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "staff_weekly_hours_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
             referencedRelation: "salons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "staff_weekly_hours_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "artist_analytics"
+            referencedColumns: ["salon_membership_id"]
           },
           {
             foreignKeyName: "staff_weekly_hours_salon_membership_id_fkey"
@@ -1043,7 +1218,94 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      artist_analytics: {
+        Row: {
+          avg_rating: number | null
+          completed_count: number | null
+          display_name: string | null
+          revenue: number | null
+          salon_id: string | null
+          salon_membership_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_memberships_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "salon_memberships_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peak_booking_hours: {
+        Row: {
+          appointment_count: number | null
+          hour_of_day: number | null
+          salon_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "appointments_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      salon_analytics_summary: {
+        Row: {
+          avg_review_rating: number | null
+          avg_ticket: number | null
+          cancelled_appointments: number | null
+          completed_appointments: number | null
+          no_show_appointments: number | null
+          salon_id: string | null
+          total_booked_appointments: number | null
+          total_customers: number | null
+          total_revenue: number | null
+        }
+        Relationships: []
+      }
+      service_analytics: {
+        Row: {
+          completed_count: number | null
+          revenue: number | null
+          salon_id: string | null
+          service_id: string | null
+          service_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "services_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_open_appointment: {

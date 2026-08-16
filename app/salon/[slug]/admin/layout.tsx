@@ -11,6 +11,7 @@ const NAV = [
   { href: "/services", label: "Servicios" },
   { href: "/staff", label: "Staff" },
   { href: "/reviews", label: "Reseñas" },
+  { href: "/analytics", label: "Analytics" },
 ];
 
 export default async function AdminLayout({
