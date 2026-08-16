@@ -1,6 +1,13 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, getSalonMembership } from "@/lib/auth/session";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+
+const NAV = [
+  { href: "", label: "Overview" },
+  { href: "/services", label: "Servicios" },
+  { href: "/staff", label: "Staff" },
+];
 
 export default async function AdminLayout({
   children,
@@ -16,5 +23,20 @@ export default async function AdminLayout({
   const membership = await getSalonMembership(salon.id);
   if (!membership) redirect(`/salon/${slug}`);
 
-  return <>{children}</>;
+  return (
+    <div className="flex flex-1 flex-col">
+      <nav className="flex gap-4 border-b border-border px-8 py-4 font-sans text-sm">
+        {NAV.map((item) => (
+          <Link
+            key={item.label}
+            href={`/salon/${slug}/admin${item.href}`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      {children}
+    </div>
+  );
 }

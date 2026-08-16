@@ -1,22 +1,8 @@
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/types/database";
 
-export type Salon = {
-  id: string;
-  slug: string;
-  name: string;
-  timezone: string;
-  cancellation_cutoff_hours: number;
-  status: "active" | "suspended";
-  hero_title: string | null;
-  hero_subtitle: string | null;
-  hero_image_url: string | null;
-  footer_text: string | null;
-  address: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  social_links: Record<string, string>;
-};
+export type Salon = Tables<"salons">;
 
 /**
  * Resolves a salon by slug once per request. Deliberately does not filter by
