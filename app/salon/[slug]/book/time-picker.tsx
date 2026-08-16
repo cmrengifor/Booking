@@ -44,7 +44,7 @@ export function TimePicker({
   );
 
   function scrollBy(direction: 1 | -1) {
-    trackRef.current?.scrollBy({ left: 200 * direction, behavior: "smooth" });
+    trackRef.current?.scrollBy({ top: 120 * direction, behavior: "smooth" });
   }
 
   function pickHour(hour: number) {
@@ -70,7 +70,7 @@ export function TimePicker({
         <div className="group/carousel relative">
           <div
             ref={trackRef}
-            className="flex gap-2 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex h-72 flex-col gap-2 overflow-y-auto scroll-smooth pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {DAY_TICKS.map((tick) => {
               const isAvailable = slotByLabel.has(tick.label);
@@ -101,17 +101,17 @@ export function TimePicker({
             type="button"
             aria-label="Anterior"
             onClick={() => scrollBy(-1)}
-            className="absolute top-1/2 left-0 hidden -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-background p-1.5 opacity-0 transition-opacity group-hover/carousel:opacity-100 sm:block"
+            className="absolute top-0 left-1/2 hidden -translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-background p-1.5 text-xs opacity-0 transition-opacity group-hover/carousel:opacity-100 sm:block"
           >
-            ‹
+            ▲
           </button>
           <button
             type="button"
             aria-label="Siguiente"
             onClick={() => scrollBy(1)}
-            className="absolute top-1/2 right-0 hidden translate-x-1/2 -translate-y-1/2 rounded-full border border-border bg-background p-1.5 opacity-0 transition-opacity group-hover/carousel:opacity-100 sm:block"
+            className="absolute bottom-0 left-1/2 hidden -translate-x-1/2 translate-y-1/2 rounded-full border border-border bg-background p-1.5 text-xs opacity-0 transition-opacity group-hover/carousel:opacity-100 sm:block"
           >
-            ›
+            ▼
           </button>
         </div>
         <p className="mt-2 font-sans text-xs text-muted-foreground">

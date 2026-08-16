@@ -38,6 +38,8 @@ declare
   v_customer_record_id uuid;
   v_sofia_appt_id uuid;
   v_valentina_appt_id uuid;
+  v_chapinero_id uuid;
+  v_zonarosa_id uuid;
 begin
   select id into v_salon_id from salons where slug = 'atelier-noir';
 
@@ -93,18 +95,63 @@ begin
     about_me = excluded.about_me,
     interests = excluded.interests;
 
-  -- Salon open Tue–Sat 09:00–18:00, closed Sun/Mon.
-  insert into salon_weekly_hours (salon_id, day_of_week, open_time, close_time)
-  select v_salon_id, d, '09:00', '18:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d
-  on conflict (salon_id, day_of_week) do nothing;
+  -- Two fictional branches. The migration auto-created one default location
+  -- per existing salon (named after the salon itself) so it's safe to
+  -- rename here rather than insert a duplicate.
+  select id into v_chapinero_id from salon_locations where salon_id = v_salon_id order by created_at limit 1;
+  if v_chapinero_id is null then
+    insert into salon_locations (salon_id, name, address, contact_phone, sort_order)
+    values (v_salon_id, 'Chapinero', 'Cra. 13 # 54-10, Chapinero, Bogotá', '+57 000 000 0001', 0)
+    returning id into v_chapinero_id;
+  else
+    update salon_locations
+    set name = 'Chapinero', address = 'Cra. 13 # 54-10, Chapinero, Bogotá', contact_phone = '+57 000 000 0001', sort_order = 0
+    where id = v_chapinero_id and name <> 'Chapinero';
+  end if;
 
-  -- Both stylists work the salon's full hours with a 13:00–14:00 break.
+  select id into v_zonarosa_id from salon_locations where salon_id = v_salon_id and name = 'Zona Rosa';
+  if v_zonarosa_id is null then
+    insert into salon_locations (salon_id, name, address, contact_phone, sort_order)
+    values (v_salon_id, 'Zona Rosa', 'Cl. 82 # 12-15, Zona Rosa, Bogotá', '+57 000 000 0002', 1)
+    returning id into v_zonarosa_id;
+  end if;
+
+  -- Sofia works out of Chapinero, Valentina out of Zona Rosa — each
+  -- location has its own team, per the improvements backlog decision.
+  update salon_memberships set location_id = v_chapinero_id where id = v_sofia_membership_id;
+  update salon_memberships set location_id = v_zonarosa_id where id = v_valentina_membership_id;
+  update artist_profiles set location_id = v_chapinero_id where salon_membership_id = v_sofia_membership_id;
+  update artist_profiles set location_id = v_zonarosa_id where salon_membership_id = v_valentina_membership_id;
+
+  -- Chapinero open Tue–Sat 09:00–18:00; Zona Rosa Tue–Sat 10:00–19:00 —
+  -- deliberately different so the location filter is easy to verify.
+  insert into salon_weekly_hours (salon_id, location_id, day_of_week, open_time, close_time)
+  select v_salon_id, v_chapinero_id, d, '09:00', '18:00'
+  from unnest(array[2, 3, 4, 5, 6]) as d
+  on conflict (location_id, day_of_week) do nothing;
+
+  insert into salon_weekly_hours (salon_id, location_id, day_of_week, open_time, close_time)
+  select v_salon_id, v_zonarosa_id, d, '10:00', '19:00'
+  from unnest(array[2, 3, 4, 5, 6]) as d
+  on conflict (location_id, day_of_week) do nothing;
+
+  -- Both stylists work their location's full hours with a 13:00–14:00 break.
+  -- ON CONFLICT updates (not "do nothing") so a re-run converges Valentina's
+  -- hours onto Zona Rosa's window even though rows already existed from
+  -- before locations existed.
   insert into staff_weekly_hours (salon_membership_id, salon_id, day_of_week, start_time, end_time, break_start, break_end)
-  select membership_id, v_salon_id, d, '09:00', '18:00', '13:00', '14:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d,
-       unnest(array[v_sofia_membership_id, v_valentina_membership_id]) as membership_id
-  on conflict (salon_membership_id, day_of_week) do nothing;
+  select v_sofia_membership_id, v_salon_id, d, '09:00', '18:00', '13:00', '14:00'
+  from unnest(array[2, 3, 4, 5, 6]) as d
+  on conflict (salon_membership_id, day_of_week) do update set
+    start_time = excluded.start_time, end_time = excluded.end_time,
+    break_start = excluded.break_start, break_end = excluded.break_end;
+
+  insert into staff_weekly_hours (salon_membership_id, salon_id, day_of_week, start_time, end_time, break_start, break_end)
+  select v_valentina_membership_id, v_salon_id, d, '10:00', '19:00', '13:00', '14:00'
+  from unnest(array[2, 3, 4, 5, 6]) as d
+  on conflict (salon_membership_id, day_of_week) do update set
+    start_time = excluded.start_time, end_time = excluded.end_time,
+    break_start = excluded.break_start, break_end = excluded.break_end;
 
   -- Services. service_categories has no unique constraint on (salon_id, name),
   -- so idempotency here is "check first" rather than ON CONFLICT.

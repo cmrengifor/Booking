@@ -80,7 +80,9 @@ export function ArtistsSection({
                 </div>
               ) : null}
               <Link
-                href={`/salon/${slug}/book?preference=specific&artistId=${artist.salon_membership_id}`}
+                href={`/salon/${slug}/book?preference=specific&artistId=${artist.salon_membership_id}${
+                  artist.location_id ? `&locationId=${artist.location_id}` : ""
+                }`}
                 className="mt-6 inline-block border-b border-gold font-sans text-sm text-foreground hover:text-gold"
               >
                 Reservar

@@ -9,6 +9,7 @@ import {
 
 export async function getAvailableSlots(params: {
   salonId: string;
+  locationId: string;
   timezone: string;
   serviceId: string;
   variantId: string | null;
@@ -39,7 +40,7 @@ export async function getAvailableSlots(params: {
   const { data: salonHours } = await supabase
     .from("salon_weekly_hours")
     .select("day_of_week, open_time, close_time")
-    .eq("salon_id", params.salonId);
+    .eq("location_id", params.locationId);
 
   const from = params.date;
   const to = params.date;
@@ -86,6 +87,7 @@ export async function getAvailableSlots(params: {
     .from("artist_profiles")
     .select("salon_membership_id")
     .eq("salon_id", params.salonId)
+    .eq("location_id", params.locationId)
     .eq("published", true);
 
   const candidates = await Promise.all(
@@ -102,6 +104,7 @@ export async function getAvailableSlots(params: {
 
 export async function confirmBooking(params: {
   salonId: string;
+  locationId: string;
   serviceId: string;
   variantId: string | null;
   artistPreference: "specific" | "any";
@@ -111,6 +114,7 @@ export async function confirmBooking(params: {
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("book_appointment", {
     p_salon_id: params.salonId,
+    p_location_id: params.locationId,
     p_service_id: params.serviceId,
     // The DB function accepts NULL for both (any-artist bookings have no
     // variant or no named artist) — the generated RPC arg types just don't

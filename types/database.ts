@@ -119,6 +119,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -137,6 +138,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id?: string
+          location_id: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -155,6 +157,7 @@ export type Database = {
           customer_id?: string
           ends_at?: string
           id?: string
+          location_id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price?: number
           salon_id?: string
@@ -171,6 +174,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "salon_locations"
             referencedColumns: ["id"]
           },
           {
@@ -233,6 +243,7 @@ export type Database = {
           headshot_url: string | null
           id: string
           interests: string[]
+          location_id: string | null
           published: boolean
           salon_id: string
           salon_membership_id: string
@@ -248,6 +259,7 @@ export type Database = {
           headshot_url?: string | null
           id?: string
           interests?: string[]
+          location_id?: string | null
           published?: boolean
           salon_id: string
           salon_membership_id: string
@@ -263,6 +275,7 @@ export type Database = {
           headshot_url?: string | null
           id?: string
           interests?: string[]
+          location_id?: string | null
           published?: boolean
           salon_id?: string
           salon_membership_id?: string
@@ -271,6 +284,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "artist_profiles_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "salon_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "artist_profiles_salon_id_fkey"
             columns: ["salon_id"]
@@ -846,11 +866,63 @@ export type Database = {
           },
         ]
       }
+      salon_locations: {
+        Row: {
+          active: boolean
+          address: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          name: string
+          salon_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          salon_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          salon_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "salon_locations_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "salon_locations_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salon_memberships: {
         Row: {
           created_at: string
           id: string
           invited_email: string | null
+          location_id: string | null
           profile_id: string | null
           role: Database["public"]["Enums"]["salon_role"]
           salon_id: string
@@ -861,6 +933,7 @@ export type Database = {
           created_at?: string
           id?: string
           invited_email?: string | null
+          location_id?: string | null
           profile_id?: string | null
           role: Database["public"]["Enums"]["salon_role"]
           salon_id: string
@@ -871,6 +944,7 @@ export type Database = {
           created_at?: string
           id?: string
           invited_email?: string | null
+          location_id?: string | null
           profile_id?: string | null
           role?: Database["public"]["Enums"]["salon_role"]
           salon_id?: string
@@ -878,6 +952,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salon_memberships_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "salon_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "salon_memberships_profile_id_fkey"
             columns: ["profile_id"]
@@ -906,6 +987,7 @@ export type Database = {
           close_time: string
           day_of_week: number
           id: string
+          location_id: string
           open_time: string
           salon_id: string
         }
@@ -913,6 +995,7 @@ export type Database = {
           close_time: string
           day_of_week: number
           id?: string
+          location_id: string
           open_time: string
           salon_id: string
         }
@@ -920,10 +1003,18 @@ export type Database = {
           close_time?: string
           day_of_week?: number
           id?: string
+          location_id?: string
           open_time?: string
           salon_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "salon_weekly_hours_location_id_fkey"
+            columns: ["location_id"]
+            isOneToOne: false
+            referencedRelation: "salon_locations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "salon_weekly_hours_salon_id_fkey"
             columns: ["salon_id"]
@@ -1409,6 +1500,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1436,6 +1528,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1456,6 +1549,7 @@ export type Database = {
       book_appointment: {
         Args: {
           p_artist_preference: Database["public"]["Enums"]["artist_preference"]
+          p_location_id: string
           p_salon_id: string
           p_salon_membership_id: string
           p_service_id: string
@@ -1470,6 +1564,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1497,6 +1592,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1524,6 +1620,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1552,6 +1649,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1608,6 +1706,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1661,6 +1760,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string
@@ -1692,6 +1792,7 @@ export type Database = {
           customer_id: string
           ends_at: string
           id: string
+          location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
           salon_id: string

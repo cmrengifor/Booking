@@ -14,7 +14,7 @@ export default async function ReschedulePage({
   const { data: appointment } = await supabase
     .from("appointments")
     .select(
-      "id, status, starts_at, service_id, service_variant_id, artist_preference, salon_membership_id, services(name), service_variants(name)"
+      "id, status, starts_at, service_id, service_variant_id, artist_preference, salon_membership_id, location_id, services(name), service_variants(name)"
     )
     .eq("id", id)
     .maybeSingle();

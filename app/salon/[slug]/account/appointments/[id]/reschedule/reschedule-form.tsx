@@ -20,6 +20,7 @@ export function RescheduleForm({
     service_variant_id: string | null;
     artist_preference: "specific" | "any";
     salon_membership_id: string | null;
+    location_id: string;
   };
 }) {
   const [date, setDate] = useState("");
@@ -37,6 +38,7 @@ export function RescheduleForm({
     try {
       const result = await getAvailableSlots({
         salonId: salon.id,
+        locationId: appointment.location_id,
         timezone: salon.timezone,
         serviceId: appointment.service_id,
         variantId: appointment.service_variant_id,

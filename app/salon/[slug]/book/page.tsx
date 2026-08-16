@@ -11,11 +11,11 @@ export default async function BookPage({
   if (!salon) notFound();
 
   const supabase = await createClient();
-  const [{ data: categories }, { data: services }, { data: variants }, { data: artists }] =
+  const [{ data: locations }, { data: services }, { data: variants }, { data: artists }] =
     await Promise.all([
       supabase
-        .from("service_categories")
-        .select("*")
+        .from("salon_locations")
+        .select("id, name, address")
         .eq("salon_id", salon.id)
         .eq("active", true)
         .order("sort_order"),
@@ -33,7 +33,7 @@ export default async function BookPage({
         .order("sort_order"),
       supabase
         .from("artist_profiles")
-        .select("salon_membership_id, display_name, bio")
+        .select("salon_membership_id, display_name, bio, location_id")
         .eq("salon_id", salon.id)
         .eq("published", true)
         .order("sort_order"),
@@ -42,7 +42,7 @@ export default async function BookPage({
   return (
     <BookingWizard
       salon={salon}
-      categories={categories ?? []}
+      locations={locations ?? []}
       services={services ?? []}
       variants={variants ?? []}
       artists={artists ?? []}
