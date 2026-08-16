@@ -1,5 +1,7 @@
+import Link from "next/link";
 import { Reveal } from "./reveal";
 import { ImageCarousel } from "./image-carousel";
+import { buttonVariants } from "@/components/ui/button";
 import type { Tables } from "@/types/database";
 
 type Category = Tables<"service_categories">;
@@ -15,11 +17,13 @@ function rankingPrice(service: Service, variants: Variant[]) {
 }
 
 export function ServicesSection({
+  slug,
   categories,
   services,
   variants,
   portfolio,
 }: {
+  slug: string;
   categories: Category[];
   services: Service[];
   variants: Variant[];
@@ -28,6 +32,14 @@ export function ServicesSection({
   return (
     <section id="servicios" className="px-6 py-24 sm:px-10 sm:py-32">
       <div className="mx-auto flex max-w-5xl flex-col gap-16">
+        <div className="flex justify-end">
+          <Link
+            href={`/salon/${slug}/portfolio`}
+            className="font-sans text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+          >
+            Ver Obras de Arte →
+          </Link>
+        </div>
         {categories.map((category) => (
           <Reveal key={category.id} className="grid gap-6 sm:grid-cols-[1fr_2fr] sm:gap-12">
             <h2 className="font-heading text-3xl text-foreground sm:sticky sm:top-28 sm:self-start">
@@ -75,6 +87,12 @@ export function ServicesSection({
                       {servicePhotos.length > 0 && (
                         <ImageCarousel images={servicePhotos} className="mt-4" />
                       )}
+                      <Link
+                        href={`/salon/${slug}/book?serviceId=${service.id}`}
+                        className={buttonVariants({ variant: "outline", size: "sm", className: "mt-4" })}
+                      >
+                        Reservar
+                      </Link>
                     </li>
                   );
                 })}

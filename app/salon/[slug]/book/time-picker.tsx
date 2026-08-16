@@ -87,8 +87,8 @@ export function TimePicker({
                   className={cn(
                     "shrink-0 rounded-md border px-3 py-2 font-mono text-xs whitespace-nowrap transition-colors",
                     isAvailable
-                      ? "border-border text-foreground hover:border-gold"
-                      : "border-border/40 text-muted-foreground/40",
+                      ? "border-green-600/40 text-green-700 hover:border-green-600 dark:text-green-400"
+                      : "border-red-600/20 text-red-400/70 dark:text-red-500/50",
                     isSelected && "border-gold bg-gold/10 text-gold"
                   )}
                 >
@@ -116,10 +116,10 @@ export function TimePicker({
         </div>
         <p className="mt-2 font-sans text-xs text-muted-foreground">
           <span className="mr-3 inline-flex items-center gap-1">
-            <span className="inline-block size-2 rounded-full border border-border" /> Disponible
+            <span className="inline-block size-2 rounded-full bg-green-600" /> Disponible
           </span>
           <span className="inline-flex items-center gap-1">
-            <span className="inline-block size-2 rounded-full bg-muted-foreground/30" /> No disponible
+            <span className="inline-block size-2 rounded-full bg-red-500" /> No disponible
           </span>
         </p>
       </div>

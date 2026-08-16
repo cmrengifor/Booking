@@ -55,10 +55,16 @@ function BookingWizardInner({
   const date = searchParams.get("date");
   const startsAt = searchParams.get("startsAt");
 
+  // Local-only: expanding a category or a service-with-variants must never
+  // touch the URL (it's still the same step) — only the final leaf choice
+  // (a service with no variants, or a chosen variant) commits to
+  // searchParams and advances the wizard. Committing on every intermediate
+  // click used to read as "it took me somewhere else" even though it was
+  // still step 1.
   const [expandedCategoryId, setExpandedCategoryId] = useState<string | null>(
-    categories.find((c) => services.some((s) => s.id === serviceId && s.category_id === c.id))
-      ?.id ?? categories[0]?.id ?? null
+    categories[0]?.id ?? null
   );
+  const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
 
   const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined);
   const [slots, setSlots] = useState<string[]>([]);
@@ -83,6 +89,10 @@ function BookingWizardInner({
 
   const selectedService = services.find((s) => s.id === serviceId);
   const serviceVariants = variants.filter((v) => v.service_id === serviceId);
+  // True when a deep link (the "Reservar" button on a service card) sets
+  // serviceId directly for a service that still needs a variant chosen —
+  // distinct from the local-only cascade below, which never touches the URL
+  // for intermediate clicks.
   const needsVariant = !!selectedService?.has_variants && !variantId;
 
   useEffect(() => {
@@ -151,8 +161,14 @@ function BookingWizardInner({
     if (startsAt) return setParams({ startsAt: null });
     if (date) return setParams({ date: null });
     if (preference) return setParams({ preference: null, artistId: null });
-    if (variantId) return setParams({ variantId: null });
-    if (serviceId) return setParams({ serviceId: null, variantId: null });
+    if (serviceId) {
+      // Land back on the category/service that was chosen, not a collapsed accordion.
+      setExpandedCategoryId(
+        services.find((s) => s.id === serviceId)?.category_id ?? categories[0]?.id ?? null
+      );
+      setExpandedServiceId(serviceId);
+      return setParams({ serviceId: null, variantId: null });
+    }
     router.push(`/salon/${salon.slug}`);
   }
 
@@ -169,59 +185,9 @@ function BookingWizardInner({
         <Stepper current={step} />
       </div>
 
-      {/* Step 1: service, cascading category -> service -> variant */}
-      {step === 1 && !needsVariant && (
-        <div className="flex flex-col gap-6">
-          <h1 className="font-heading text-2xl text-foreground">Elige un servicio</h1>
-          <div className="flex flex-col gap-2">
-            {categories.map((cat) => {
-              const isExpanded = expandedCategoryId === cat.id;
-              return (
-                <div key={cat.id} className="rounded-md border border-border">
-                  <button
-                    type="button"
-                    onClick={() => setExpandedCategoryId(isExpanded ? null : cat.id)}
-                    className="flex w-full items-center justify-between px-4 py-3 text-left font-heading text-lg text-foreground"
-                  >
-                    {cat.name}
-                    <span className="font-sans text-sm text-muted-foreground">
-                      {isExpanded ? "–" : "+"}
-                    </span>
-                  </button>
-                  {isExpanded && (
-                    <ul className="flex flex-col gap-2 border-t border-border px-4 py-3">
-                      {services
-                        .filter((s) => s.category_id === cat.id)
-                        .map((s) => (
-                          <li key={s.id}>
-                            <button
-                              onClick={() => setParams({ serviceId: s.id, variantId: null })}
-                              className="w-full rounded-md border border-border px-4 py-3 text-left font-sans text-sm hover:border-gold"
-                            >
-                              <span className="text-foreground">{s.name}</span>{" "}
-                              {!s.has_variants && (
-                                <span className="text-muted-foreground">
-                                  ${s.base_price} · {s.base_duration_minutes} min
-                                </span>
-                              )}
-                              {s.has_variants && (
-                                <span className="text-muted-foreground">
-                                  ({variants.filter((v) => v.service_id === s.id).length} opciones)
-                                </span>
-                              )}
-                            </button>
-                          </li>
-                        ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Step 1b: variant picker, cascading under the chosen service */}
+      {/* Step 1, deep-link entry: "Reservar" on a service card set serviceId
+          directly for a service that still needs a variant — show just that
+          service's variants rather than the full category accordion. */}
       {step === 1 && needsVariant && selectedService && (
         <div className="flex flex-col gap-6">
           <h1 className="font-heading text-2xl text-foreground">{selectedService.name}</h1>
@@ -229,6 +195,7 @@ function BookingWizardInner({
             {serviceVariants.map((v) => (
               <li key={v.id}>
                 <button
+                  type="button"
                   onClick={() => setParams({ variantId: v.id })}
                   className="w-full rounded-md border border-border px-4 py-3 text-left font-sans text-sm hover:border-gold"
                 >
@@ -240,6 +207,89 @@ function BookingWizardInner({
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Step 1: service, cascading category -> service -> variant, fully local until the leaf */}
+      {step === 1 && !needsVariant && (
+        <div className="flex flex-col gap-6">
+          <h1 className="font-heading text-2xl text-foreground">Elige un servicio</h1>
+          <div className="flex flex-col gap-2">
+            {categories.map((cat) => {
+              const isCategoryExpanded = expandedCategoryId === cat.id;
+              return (
+                <div key={cat.id} className="rounded-md border border-border">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedCategoryId(isCategoryExpanded ? null : cat.id)
+                    }
+                    className="flex w-full items-center justify-between px-4 py-3 text-left font-heading text-lg text-foreground"
+                  >
+                    {cat.name}
+                    <span className="font-sans text-sm text-muted-foreground">
+                      {isCategoryExpanded ? "–" : "+"}
+                    </span>
+                  </button>
+                  {isCategoryExpanded && (
+                    <ul className="flex flex-col gap-2 border-t border-border px-4 py-3">
+                      {services
+                        .filter((s) => s.category_id === cat.id)
+                        .map((s) => {
+                          const isServiceExpanded = expandedServiceId === s.id;
+                          const sVariants = variants.filter((v) => v.service_id === s.id);
+                          return (
+                            <li key={s.id}>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  s.has_variants
+                                    ? setExpandedServiceId(isServiceExpanded ? null : s.id)
+                                    : setParams({ serviceId: s.id, variantId: null })
+                                }
+                                className="flex w-full items-center justify-between rounded-md border border-border px-4 py-3 text-left font-sans text-sm hover:border-gold"
+                              >
+                                <span className="text-foreground">{s.name}</span>
+                                {!s.has_variants && (
+                                  <span className="text-muted-foreground">
+                                    ${s.base_price} · {s.base_duration_minutes} min
+                                  </span>
+                                )}
+                                {s.has_variants && (
+                                  <span className="text-muted-foreground">
+                                    {isServiceExpanded ? "–" : `${sVariants.length} opciones`}
+                                  </span>
+                                )}
+                              </button>
+                              {s.has_variants && isServiceExpanded && (
+                                <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-4">
+                                  {sVariants.map((v) => (
+                                    <li key={v.id}>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          setParams({ serviceId: s.id, variantId: v.id })
+                                        }
+                                        className="w-full rounded-md border border-border px-4 py-3 text-left font-sans text-sm hover:border-gold"
+                                      >
+                                        <span className="text-foreground">{v.name}</span>{" "}
+                                        <span className="text-muted-foreground">
+                                          ${v.price} · {v.duration_minutes} min
+                                        </span>
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 

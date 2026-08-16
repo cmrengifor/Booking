@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import type { Salon } from "@/lib/tenant/resolve-salon";
 import { subscribeToNewsletter } from "@/app/salon/[slug]/newsletter-actions";
@@ -42,6 +43,13 @@ export function NewsletterSection({ salon }: { salon: Salon }) {
         {status === "error" && (
           <p className="font-sans text-xs text-destructive">Intenta de nuevo.</p>
         )}
+        <p className="font-sans text-[0.7rem] text-muted-foreground">
+          Solo usamos tu correo para enviarte novedades.{" "}
+          <Link href={`/salon/${salon.slug}/privacidad`} className="underline hover:text-foreground">
+            Manejo de datos
+          </Link>
+          .
+        </p>
       </div>
     </section>
   );

@@ -88,6 +88,7 @@ export default async function SalonHomePage({
       <SiteHeader salon={salon} />
       <Hero salon={salon} />
       <ServicesSection
+        slug={slug}
         categories={categories ?? []}
         services={services ?? []}
         variants={variants ?? []}

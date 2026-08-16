@@ -30,8 +30,13 @@ export function Hero({ salon }: { salon: Salon }) {
         <Link
           href={`/salon/${salon.slug}/book`}
           className={buttonVariants({
+            // `!` forces these to win over the variant's own bg-primary/
+            // text-primary-foreground — tailwind-merge doesn't dedupe
+            // custom-theme color utilities against each other, so without
+            // `!` the two class lists can both survive and the wrong one
+            // wins the cascade (this is what caused white-on-white text).
             className:
-              "mt-2 h-auto w-fit rounded-full bg-white px-8 py-4 text-base font-medium text-black shadow-lg shadow-black/20 hover:bg-white/85 sm:text-lg",
+              "mt-2 h-auto w-fit rounded-full bg-white! px-8 py-4 text-base font-medium text-black! shadow-lg shadow-black/20 hover:bg-white/85! sm:text-lg",
           })}
         >
           Reservar una cita
