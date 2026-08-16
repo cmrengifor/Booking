@@ -32,6 +32,25 @@ export async function cancelMyAppointment(appointmentId: string, slug: string) {
   revalidatePath(`/salon/${slug}/account`);
 }
 
+export async function submitReview(appointmentId: string, slug: string, formData: FormData) {
+  const rating = Number(formData.get("rating"));
+  const comment = String(formData.get("comment") ?? "").trim() || null;
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("submit_review", {
+    p_appointment_id: appointmentId,
+    p_rating: rating,
+    // The DB function accepts NULL for an empty comment — see the same
+    // generated-type nullability note in book/actions.ts.
+    p_comment: comment as string,
+  });
+  // A duplicate review isn't a real error from the customer's point of
+  // view (e.g. a reload after already submitting) — treat it as success.
+  if (error && error.code !== "23505") throw new Error(error.message);
+
+  revalidatePath(`/salon/${slug}/account`);
+}
+
 export async function signOut(slug: string) {
   const supabase = await createClient();
   await supabase.auth.signOut();

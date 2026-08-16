@@ -410,6 +410,84 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          appointment_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          rating: number
+          salon_id: string
+          salon_membership_id: string
+          status: Database["public"]["Enums"]["review_status"]
+        }
+        Insert: {
+          appointment_id: string
+          comment?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          rating: number
+          salon_id: string
+          salon_membership_id: string
+          status?: Database["public"]["Enums"]["review_status"]
+        }
+        Update: {
+          appointment_id?: string
+          comment?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          moderated_at?: string | null
+          moderated_by?: string | null
+          rating?: number
+          salon_id?: string
+          salon_membership_id?: string
+          status?: Database["public"]["Enums"]["review_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reviews_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_moderated_by_fkey"
+            columns: ["moderated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "salon_memberships"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       salon_memberships: {
         Row: {
           created_at: string
@@ -1032,6 +1110,31 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      moderate_review: {
+        Args: {
+          p_review_id: string
+          p_status: Database["public"]["Enums"]["review_status"]
+        }
+        Returns: {
+          appointment_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          rating: number
+          salon_id: string
+          salon_membership_id: string
+          status: Database["public"]["Enums"]["review_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       release_appointment: {
         Args: { p_appointment_id: string; p_reason?: string }
         Returns: {
@@ -1094,6 +1197,28 @@ export type Database = {
         Args: { p_salon_id: string }
         Returns: Database["public"]["Enums"]["salon_role"]
       }
+      submit_review: {
+        Args: { p_appointment_id: string; p_comment: string; p_rating: number }
+        Returns: {
+          appointment_id: string
+          comment: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          moderated_at: string | null
+          moderated_by: string | null
+          rating: number
+          salon_id: string
+          salon_membership_id: string
+          status: Database["public"]["Enums"]["review_status"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       appointment_event_type:
@@ -1126,6 +1251,7 @@ export type Database = {
         | "open_appointment_available"
         | "appointment_assigned"
       payment_status: "unpaid" | "paid"
+      review_status: "pending" | "published" | "rejected"
       salon_role: "owner" | "manager" | "receptionist" | "stylist"
       salon_status: "active" | "suspended"
     }
@@ -1291,6 +1417,7 @@ export const Constants = {
         "appointment_assigned",
       ],
       payment_status: ["unpaid", "paid"],
+      review_status: ["pending", "published", "rejected"],
       salon_role: ["owner", "manager", "receptionist", "stylist"],
       salon_status: ["active", "suspended"],
     },
