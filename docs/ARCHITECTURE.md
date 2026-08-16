@@ -1,5 +1,18 @@
 # Beauty Salon SaaS — Technical Architecture Proposal
 
+## Status (2026-08-16)
+
+All 12 phases below are built, verified live against the real Supabase
+project, and committed locally (not pushed — that stays a separate,
+explicitly-confirmed step). What's genuinely left, because it can't be
+done from code: real pilot-salon data (name, address, real services/
+staff/photos) to replace the fictional Atelier Noir seed; a decision on
+error-monitoring/rate-limiting infrastructure (both need a third-party
+account Carlos would create, not something to sign up for
+autonomously); and the actual `git push` / production deploy. See
+`PRODUCT.md` and `DESIGN.md` (added in Phase 10) for the product record
+and the built visual system, respectively.
+
 ## Context
 
 Carlos previously built a single-salon booking MVP in this same repo (`nail-salon-booking`) on FastAPI + PostgreSQL + AWS — that build reached a complete, tested V1 (booking engine, staff CRUD, WhatsApp notification scaffolding, Fresha-style landing page). On **2026-08-15 at 18:17**, commit `19f8b42 "reestructuracion"` deleted the entire FastAPI codebase (4,050 lines, zero additions) from this repo, and a new `project/PROJECT_CONTEXT.md` was dropped in describing a **different, larger product**: a true multi-tenant SaaS (many salons, not one salon with multi-tenant-shaped data) on a completely different stack (Next.js/React/TypeScript/Supabase/Vercel instead of FastAPI/Postgres/AWS).
