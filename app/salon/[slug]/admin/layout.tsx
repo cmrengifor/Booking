@@ -5,6 +5,8 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 
 const NAV = [
   { href: "", label: "Overview" },
+  { href: "/appointments", label: "Citas" },
+  { href: "/customers", label: "Clientes" },
   { href: "/services", label: "Servicios" },
   { href: "/staff", label: "Staff" },
 ];
