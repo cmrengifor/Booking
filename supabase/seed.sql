@@ -36,6 +36,15 @@ begin
   select id into v_salon_id from salons where slug = 'atelier-noir';
 
   -- Two fictional stylists (auth.users, minimal required columns).
+  --
+  -- Password is a fresh random value every time this ever runs on a new
+  -- database, NOT a fixed word — this repo is public, so a guessable
+  -- password here would be a real, working credential handed to anyone
+  -- who reads this file, not just a fictional detail. To actually sign
+  -- in as one of these accounts for local dev/testing, reset the
+  -- password yourself via the Supabase dashboard or
+  -- `supabase auth admin` against your own project — never commit a
+  -- real usable value back into this file.
   insert into auth.users (
     id, instance_id, aud, role, email, encrypted_password,
     email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
@@ -43,13 +52,13 @@ begin
     email_change_token_new, email_change
   ) values
     (v_owner_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'owner@atelier-noir.example', crypt('placeholder', gen_salt('bf')), now(), '{}', '{"full_name":"Camila Torres"}',
+     'owner@atelier-noir.example', crypt(gen_random_uuid()::text, gen_salt('bf')), now(), '{}', '{"full_name":"Camila Torres"}',
      now(), now(), '', '', '', ''),
     (v_sofia_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'sofia@atelier-noir.example', crypt('placeholder', gen_salt('bf')), now(), '{}', '{"full_name":"Sofia Duarte"}',
+     'sofia@atelier-noir.example', crypt(gen_random_uuid()::text, gen_salt('bf')), now(), '{}', '{"full_name":"Sofia Duarte"}',
      now(), now(), '', '', '', ''),
     (v_valentina_id, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-     'valentina@atelier-noir.example', crypt('placeholder', gen_salt('bf')), now(), '{}', '{"full_name":"Valentina Rey"}',
+     'valentina@atelier-noir.example', crypt(gen_random_uuid()::text, gen_salt('bf')), now(), '{}', '{"full_name":"Valentina Rey"}',
      now(), now(), '', '', '', '')
   on conflict (id) do nothing;
 
