@@ -5,6 +5,7 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cancelMyAppointment, signOut, submitReview, updateProfile } from "./actions";
+import { PhoneInput } from "./phone-input";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Buscando artista",
@@ -45,11 +46,30 @@ export default async function AccountPage({
     ? await supabase
         .from("appointments")
         .select(
-          "id, status, starts_at, ends_at, price, services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
+          "id, status, starts_at, ends_at, price, salon_membership_id, services(name), service_variants(name)"
         )
         .eq("customer_id", customer.id)
         .order("starts_at", { ascending: false })
     : { data: [] };
+
+  // Artist names are fetched separately, via artist_profiles (public for
+  // published rows) rather than a nested salon_memberships(...) embed —
+  // salon_memberships itself isn't readable by a customer under RLS (only
+  // the member themselves, staff, or a platform admin), so the embed
+  // silently came back null and every specific-artist appointment showed
+  // as "Cualquier artista".
+  const membershipIds = Array.from(
+    new Set((appointments ?? []).map((a) => a.salon_membership_id).filter((id): id is string => !!id))
+  );
+  const { data: artistProfiles } = membershipIds.length
+    ? await supabase
+        .from("artist_profiles")
+        .select("salon_membership_id, display_name")
+        .in("salon_membership_id", membershipIds)
+    : { data: [] };
+  const artistNameByMembership = new Map(
+    (artistProfiles ?? []).map((a) => [a.salon_membership_id, a.display_name])
+  );
 
   const nowIso = DateTime.now().toISO();
   const upcoming = (appointments ?? []).filter(
@@ -103,12 +123,7 @@ export default async function AccountPage({
           placeholder="Nombre completo"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
         />
-        <input
-          name="phone"
-          defaultValue={profile?.phone ?? ""}
-          placeholder="Teléfono"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
+        <PhoneInput name="phone" defaultValue={profile?.phone ?? ""} />
         <Button type="submit" size="sm">
           Guardar
         </Button>
@@ -132,7 +147,7 @@ export default async function AccountPage({
                     .setZone(salon.timezone)
                     .setLocale("es")
                     .toFormat("cccc d LLLL, HH:mm")}{" "}
-                  · {a.salon_memberships?.artist_profiles?.display_name ?? "Cualquier artista"}{" "}
+                  · {(a.salon_membership_id && artistNameByMembership.get(a.salon_membership_id)) ?? "Cualquier artista"}{" "}
                   · {STATUS_LABELS[a.status]}
                 </p>
               </div>
