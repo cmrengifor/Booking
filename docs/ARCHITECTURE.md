@@ -1,17 +1,21 @@
 # Beauty Salon SaaS — Technical Architecture Proposal
 
-## Status (2026-08-16)
+## Status (2026-08-16, superseded — see `docs/HANDOVER.md`)
 
-All 12 phases below are built, verified live against the real Supabase
-project, and committed locally (not pushed — that stays a separate,
-explicitly-confirmed step). What's genuinely left, because it can't be
-done from code: real pilot-salon data (name, address, real services/
-staff/photos) to replace the fictional Atelier Noir seed; a decision on
-error-monitoring/rate-limiting infrastructure (both need a third-party
-account Carlos would create, not something to sign up for
-autonomously); and the actual `git push` / production deploy. See
-`PRODUCT.md` and `DESIGN.md` (added in Phase 10) for the product record
-and the built visual system, respectively.
+All 12 phases below were built, verified live, committed, and later
+pushed/deployed. Several more rounds of improvements shipped after this
+line was written (multi-location booking, wizard redesign, landing page
+and footer changes, various bug fixes) — **`docs/HANDOVER.md` is the
+up-to-date state of the project; read that first.** This section is kept
+for historical context on the original 12-phase build only.
+
+What's genuinely still left, because it can't be done from code: real
+pilot-salon data (name, address, real services/staff/photos) to replace
+the fictional Atelier Noir seed; a real email provider (Resend) —
+blocks "Trabaja con nosotros" email delivery and any future guest
+checkout; and a decision on error-monitoring/rate-limiting
+infrastructure. See `PRODUCT.md` and `DESIGN.md` (added in Phase 10)
+for the product record and the built visual system, respectively.
 
 ## Context
 
