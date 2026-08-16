@@ -49,22 +49,30 @@ export function AnalogClock({
         const isSelected = selectedHour === hour;
         const label = hour > 12 ? hour - 12 : hour;
         return (
-          <text
+          <g
             key={hour}
-            x={x}
-            y={y}
-            textAnchor="middle"
-            dominantBaseline="middle"
             onClick={() => available && onPickHour(hour)}
             onMouseEnter={() => available && setHoveredHour(hour)}
-            className={cn(
-              "font-mono text-[9px] select-none",
-              available ? "cursor-pointer fill-green-600 dark:fill-green-400" : "fill-red-400/60",
-              isSelected && "fill-gold font-bold"
-            )}
+            className={available ? "cursor-pointer" : undefined}
           >
-            {label}
-          </text>
+            <circle
+              cx={x}
+              cy={y}
+              r={7}
+              className={cn(available ? "fill-green-600" : "fill-red-500/60")}
+              stroke={isSelected ? "var(--gold)" : "none"}
+              strokeWidth={1.5}
+            />
+            <text
+              x={x}
+              y={y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              className="fill-white font-mono text-[9px] select-none"
+            >
+              {label}
+            </text>
+          </g>
         );
       })}
       <line

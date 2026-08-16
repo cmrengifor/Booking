@@ -130,6 +130,7 @@ export default async function AccountPage({
                 <p className="text-muted-foreground">
                   {DateTime.fromISO(a.starts_at)
                     .setZone(salon.timezone)
+                    .setLocale("es")
                     .toFormat("cccc d LLLL, HH:mm")}{" "}
                   · {a.salon_memberships?.artist_profiles?.display_name ?? "Cualquier artista"}{" "}
                   · {STATUS_LABELS[a.status]}
@@ -170,7 +171,7 @@ export default async function AccountPage({
             >
               {a.services?.name}
               {a.service_variants?.name && ` — ${a.service_variants.name}`} ·{" "}
-              {DateTime.fromISO(a.starts_at).setZone(salon.timezone).toFormat("d LLL yyyy")} ·{" "}
+              {DateTime.fromISO(a.starts_at).setZone(salon.timezone).setLocale("es").toFormat("d LLL yyyy")} ·{" "}
               {STATUS_LABELS[a.status]}
               {a.status === "completed" &&
                 (reviewedIds.has(a.id) ? (

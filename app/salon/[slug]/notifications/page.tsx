@@ -72,6 +72,7 @@ export default async function NotificationsPage({
                 {n.body} ·{" "}
                 {DateTime.fromISO(n.created_at)
                   .setZone(salon.timezone)
+                  .setLocale("es")
                   .toFormat("d LLL, HH:mm")}
               </p>
             </div>

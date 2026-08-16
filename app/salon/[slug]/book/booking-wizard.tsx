@@ -210,15 +210,16 @@ function BookingWizardInner({
         </div>
       )}
 
-      {/* Step 1: service, cascading category -> service -> variant, fully local until the leaf */}
+      {/* Step 1: service, cascading category -> service -> variant, fully local until the leaf.
+          One unified section — categories are internal rows, not separate boxes. */}
       {step === 1 && !needsVariant && (
         <div className="flex flex-col gap-6">
-          <h1 className="font-heading text-2xl text-foreground">Elige un servicio</h1>
-          <div className="flex flex-col gap-2">
+          <h1 className="font-heading text-2xl text-foreground">Servicio disponible</h1>
+          <div className="divide-y divide-border rounded-md border border-border">
             {categories.map((cat) => {
               const isCategoryExpanded = expandedCategoryId === cat.id;
               return (
-                <div key={cat.id} className="rounded-md border border-border">
+                <div key={cat.id}>
                   <button
                     type="button"
                     onClick={() =>
@@ -369,7 +370,7 @@ function BookingWizardInner({
             </p>
             <p>
               <span className="text-muted-foreground">Cuándo:</span>{" "}
-              {DateTime.fromISO(startsAt!).setZone(salon.timezone).toFormat("cccc d LLLL, HH:mm")} (
+              {DateTime.fromISO(startsAt!).setZone(salon.timezone).setLocale("es").toFormat("cccc d LLLL, HH:mm")} (
               {salon.timezone})
             </p>
           </div>

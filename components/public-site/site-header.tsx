@@ -1,9 +1,29 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Salon } from "@/lib/tenant/resolve-salon";
+import { getSocialLinks, SOCIAL_LABELS } from "@/lib/social-links";
+import { cn } from "@/lib/utils";
 
 export function SiteHeader({ salon }: { salon: Salon }) {
+  const socialLinks = getSocialLinks(salon);
+  const [contactOpen, setContactOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!contactOpen) return;
+    function onClickOutside(e: MouseEvent) {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
+        setContactOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [contactOpen]);
+
+  const hasContactInfo = socialLinks.length > 0 || salon.contact_phone || salon.contact_email;
+
   return (
     <header className="sticky top-0 z-40 flex items-center justify-between border-b border-border/60 bg-background/80 px-6 py-4 backdrop-blur-md sm:px-10">
       <Link
@@ -35,6 +55,54 @@ export function SiteHeader({ salon }: { salon: Salon }) {
         >
           Mi cuenta
         </Link>
+        {hasContactInfo && (
+          <div ref={panelRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setContactOpen((v) => !v)}
+              aria-expanded={contactOpen}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Contáctanos
+            </button>
+            <div
+              className={cn(
+                "absolute top-full right-0 mt-3 w-56 rounded-md border border-border bg-background p-4 shadow-lg transition-[opacity,transform]",
+                contactOpen
+                  ? "pointer-events-auto translate-y-0 opacity-100"
+                  : "pointer-events-none -translate-y-1 opacity-0"
+              )}
+            >
+              {socialLinks.length > 0 && (
+                <ul className="flex flex-col gap-2">
+                  {socialLinks.map(([key, url]) => (
+                    <li key={key}>
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-foreground hover:text-gold"
+                      >
+                        {SOCIAL_LABELS[key] ?? key}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {(salon.contact_phone || salon.contact_email) && (
+                <div
+                  className={cn(
+                    "flex flex-col gap-1 text-muted-foreground",
+                    socialLinks.length > 0 && "mt-3 border-t border-border pt-3"
+                  )}
+                >
+                  {salon.contact_phone && <span>{salon.contact_phone}</span>}
+                  {salon.contact_email && <span>{salon.contact_email}</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
     </header>
   );

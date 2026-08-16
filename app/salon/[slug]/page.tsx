@@ -9,7 +9,6 @@ import { ArtistsSection } from "@/components/public-site/artists-section";
 import { BrandsSection } from "@/components/public-site/brands-section";
 import { ReviewsSection } from "@/components/public-site/reviews-section";
 import { FaqSection } from "@/components/public-site/faq-section";
-import { NewsletterSection } from "@/components/public-site/newsletter-section";
 import { SiteFooter } from "@/components/public-site/site-footer";
 
 export default async function SalonHomePage({
@@ -103,7 +102,6 @@ export default async function SalonHomePage({
       {brands?.length ? <BrandsSection brands={brands} /> : null}
       {reviews?.length ? <ReviewsSection reviews={reviews} /> : null}
       {faqs?.length ? <FaqSection faqs={faqs} /> : null}
-      <NewsletterSection salon={salon} />
       <SiteFooter salon={salon} />
     </div>
   );

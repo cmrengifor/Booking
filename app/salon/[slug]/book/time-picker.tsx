@@ -85,11 +85,11 @@ export function TimePicker({
                     if (iso) onSelect(iso);
                   }}
                   className={cn(
-                    "shrink-0 rounded-md border px-3 py-2 font-mono text-xs whitespace-nowrap transition-colors",
+                    "shrink-0 rounded-md border px-3 py-2 font-mono text-xs whitespace-nowrap text-white transition-colors",
                     isAvailable
-                      ? "border-green-600/40 text-green-700 hover:border-green-600 dark:text-green-400"
-                      : "border-red-600/20 text-red-400/70 dark:text-red-500/50",
-                    isSelected && "border-gold bg-gold/10 text-gold"
+                      ? "border-green-600 bg-green-600 hover:bg-green-700"
+                      : "border-red-500/60 bg-red-500/60",
+                    isSelected && "ring-2 ring-gold ring-offset-2 ring-offset-background"
                   )}
                 >
                   {tick.label}

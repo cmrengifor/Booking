@@ -45,7 +45,7 @@ export default async function AdminAppointmentsPage({
   const isStylist = membership?.role === "stylist";
 
   function fmt(a: { starts_at: string }) {
-    return DateTime.fromISO(a.starts_at).setZone(salon!.timezone).toFormat("d LLL, HH:mm");
+    return DateTime.fromISO(a.starts_at).setZone(salon!.timezone).setLocale("es").toFormat("d LLL, HH:mm");
   }
 
   return (
