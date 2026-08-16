@@ -1,4 +1,5 @@
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { createCategory, createService, toggleServiceActive } from "./actions";
@@ -9,6 +10,12 @@ export default async function AdminServicesPage({
   const { slug } = await params;
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
+
+  const membership = await getSalonMembership(salon.id);
+  // Services are owner/manager-editable only at the RLS level — hide the
+  // write UI for other roles instead of showing controls that error on
+  // submit (found while auditing every role's admin experience).
+  const canEdit = membership?.role === "owner" || membership?.role === "manager";
 
   const supabase = await createClient();
   const [{ data: categories }, { data: services }, { data: variants }] =
@@ -82,18 +89,24 @@ export default async function AdminServicesPage({
                           </span>
                         )}
                       </div>
-                      <form
-                        action={toggleServiceActive.bind(
-                          null,
-                          service.id,
-                          service.active,
-                          slug
-                        )}
-                      >
-                        <Button variant="ghost" size="xs" type="submit">
+                      {canEdit ? (
+                        <form
+                          action={toggleServiceActive.bind(
+                            null,
+                            service.id,
+                            service.active,
+                            slug
+                          )}
+                        >
+                          <Button variant="ghost" size="xs" type="submit">
+                            {service.active ? "Activo" : "Inactivo"}
+                          </Button>
+                        </form>
+                      ) : (
+                        <span className="font-sans text-xs text-muted-foreground">
                           {service.active ? "Activo" : "Inactivo"}
-                        </Button>
-                      </form>
+                        </span>
+                      )}
                     </li>
                   );
                 })}
@@ -107,6 +120,13 @@ export default async function AdminServicesPage({
         ))}
       </div>
 
+      {!canEdit && (
+        <p className="font-sans text-xs text-muted-foreground">
+          Solo el owner o manager pueden crear o editar servicios.
+        </p>
+      )}
+
+      {canEdit && (
       <div className="grid gap-6 sm:grid-cols-2">
         <form
           action={createCategoryAction}
@@ -184,6 +204,7 @@ export default async function AdminServicesPage({
           </Button>
         </form>
       </div>
+      )}
     </div>
   );
 }

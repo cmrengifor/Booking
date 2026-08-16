@@ -27,7 +27,7 @@ export default async function AdminAppointmentsPage({
     supabase
       .from("appointments")
       .select(
-        "id, status, starts_at, price, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
+        "id, status, starts_at, price, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
       )
       .in("status", ["open", "pending", "confirmed"])
       .order("starts_at"),
@@ -108,14 +108,20 @@ export default async function AdminAppointmentsPage({
               {a.customers?.profiles?.full_name} ·{" "}
               {a.salon_memberships?.artist_profiles?.display_name}
             </p>
-            <div className="mt-2 flex gap-2">
-              <form action={acceptPending.bind(null, a.id, slug)}>
-                <Button size="sm" type="submit">Aceptar</Button>
-              </form>
-              <form action={declinePending.bind(null, a.id, slug)}>
-                <Button size="sm" variant="outline" type="submit">Rechazar</Button>
-              </form>
-            </div>
+            {/* accept_pending_appointment/decline_pending_appointment only
+                authorize the assigned artist themselves or rec/mgr/owner —
+                a stylist looking at a teammate's pending request has no
+                authorization, so hide the buttons rather than let them fail. */}
+            {(!isStylist || a.salon_membership_id === membership?.id) && (
+              <div className="mt-2 flex gap-2">
+                <form action={acceptPending.bind(null, a.id, slug)}>
+                  <Button size="sm" type="submit">Aceptar</Button>
+                </form>
+                <form action={declinePending.bind(null, a.id, slug)}>
+                  <Button size="sm" variant="outline" type="submit">Rechazar</Button>
+                </form>
+              </div>
+            )}
           </li>
         ))}
         {!pending.length && <Empty />}
@@ -133,31 +139,41 @@ export default async function AdminAppointmentsPage({
               {a.salon_memberships?.artist_profiles?.display_name} · ${a.price}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <form
-                action={async (formData: FormData) => {
-                  "use server";
-                  await complete(a.id, Number(formData.get("amount")), slug);
-                }}
-                className="flex gap-2"
-              >
-                <input
-                  name="amount"
-                  type="number"
-                  step="0.01"
-                  defaultValue={a.price ?? undefined}
-                  className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
-                />
-                <Button size="sm" type="submit">Completar</Button>
-              </form>
-              <form action={noShow.bind(null, a.id, slug)}>
-                <Button size="sm" variant="outline" type="submit">No asistió</Button>
-              </form>
-              <form action={release.bind(null, a.id, slug)}>
-                <Button size="sm" variant="outline" type="submit">Liberar</Button>
-              </form>
-              <form action={staffCancel.bind(null, a.id, slug)}>
-                <Button size="sm" variant="ghost" type="submit">Cancelar</Button>
-              </form>
+              {/* complete_appointment/mark_no_show/release_appointment only
+                  authorize the assigned artist or rec/mgr/owner. */}
+              {(!isStylist || a.salon_membership_id === membership?.id) && (
+                <>
+                  <form
+                    action={async (formData: FormData) => {
+                      "use server";
+                      await complete(a.id, Number(formData.get("amount")), slug);
+                    }}
+                    className="flex gap-2"
+                  >
+                    <input
+                      name="amount"
+                      type="number"
+                      step="0.01"
+                      defaultValue={a.price ?? undefined}
+                      className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <Button size="sm" type="submit">Completar</Button>
+                  </form>
+                  <form action={noShow.bind(null, a.id, slug)}>
+                    <Button size="sm" variant="outline" type="submit">No asistió</Button>
+                  </form>
+                  <form action={release.bind(null, a.id, slug)}>
+                    <Button size="sm" variant="outline" type="submit">Liberar</Button>
+                  </form>
+                </>
+              )}
+              {/* cancel_appointment never authorizes a stylist, even for
+                  their own appointment — only rec/mgr/owner. */}
+              {!isStylist && (
+                <form action={staffCancel.bind(null, a.id, slug)}>
+                  <Button size="sm" variant="ghost" type="submit">Cancelar</Button>
+                </form>
+              )}
             </div>
           </li>
         ))}

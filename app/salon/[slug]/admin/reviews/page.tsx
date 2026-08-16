@@ -1,4 +1,5 @@
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { moderateReview } from "./actions";
@@ -9,6 +10,11 @@ export default async function AdminReviewsPage({
   const { slug } = await params;
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
+
+  const membership = await getSalonMembership(salon.id);
+  // Moderation is owner/manager-only at the RLS level — hide the buttons
+  // for other roles instead of showing controls that error on submit.
+  const canModerate = membership?.role === "owner" || membership?.role === "manager";
 
   const supabase = await createClient();
   const { data: reviews } = await supabase
@@ -43,14 +49,20 @@ export default async function AdminReviewsPage({
                 {r.salon_memberships?.artist_profiles?.display_name}
               </p>
               {r.comment && <p className="text-muted-foreground">{r.comment}</p>}
-              <div className="mt-2 flex gap-2">
-                <form action={moderateReview.bind(null, r.id, "published", slug)}>
-                  <Button size="sm" type="submit">Publicar</Button>
-                </form>
-                <form action={moderateReview.bind(null, r.id, "rejected", slug)}>
-                  <Button size="sm" variant="outline" type="submit">Rechazar</Button>
-                </form>
-              </div>
+              {canModerate ? (
+                <div className="mt-2 flex gap-2">
+                  <form action={moderateReview.bind(null, r.id, "published", slug)}>
+                    <Button size="sm" type="submit">Publicar</Button>
+                  </form>
+                  <form action={moderateReview.bind(null, r.id, "rejected", slug)}>
+                    <Button size="sm" variant="outline" type="submit">Rechazar</Button>
+                  </form>
+                </div>
+              ) : (
+                <p className="mt-2 font-sans text-xs text-muted-foreground">
+                  Solo el owner o manager pueden moderar reseñas.
+                </p>
+              )}
             </li>
           ))}
           {!pending.length && (

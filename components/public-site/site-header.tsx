@@ -6,7 +6,16 @@ import type { Salon } from "@/lib/tenant/resolve-salon";
 import { getSocialLinks, SOCIAL_LABELS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 
-export function SiteHeader({ salon }: { salon: Salon }) {
+export function SiteHeader({
+  salon,
+  isStaff = false,
+  isPlatformAdmin = false,
+}: {
+  salon: Salon;
+  /** Has an active salon_membership at this salon (any role). */
+  isStaff?: boolean;
+  isPlatformAdmin?: boolean;
+}) {
   const socialLinks = getSocialLinks(salon);
   const [contactOpen, setContactOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -55,6 +64,19 @@ export function SiteHeader({ salon }: { salon: Salon }) {
         >
           Mi cuenta
         </Link>
+        {isStaff && (
+          <Link
+            href={`/salon/${salon.slug}/admin`}
+            className="text-gold hover:text-foreground"
+          >
+            Panel del salón
+          </Link>
+        )}
+        {isPlatformAdmin && (
+          <Link href="/platform-admin" className="text-gold hover:text-foreground">
+            Plataforma
+          </Link>
+        )}
         {hasContactInfo && (
           <div ref={panelRef} className="relative">
             <button

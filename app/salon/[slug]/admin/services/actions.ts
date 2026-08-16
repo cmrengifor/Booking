@@ -12,7 +12,8 @@ export async function createCategory(salonId: string, slug: string, formData: Fo
   if (!name) return;
 
   const supabase = await createClient();
-  await supabase.from("service_categories").insert({ salon_id: salonId, name });
+  const { error } = await supabase.from("service_categories").insert({ salon_id: salonId, name });
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/salon/${slug}/admin/services`);
 }
@@ -28,7 +29,7 @@ export async function createService(salonId: string, slug: string, formData: For
   if (!categoryId || !name || !price || !duration) return;
 
   const supabase = await createClient();
-  await supabase.from("services").insert({
+  const { error } = await supabase.from("services").insert({
     salon_id: salonId,
     category_id: categoryId,
     name,
@@ -38,12 +39,14 @@ export async function createService(salonId: string, slug: string, formData: For
     base_duration_minutes: duration,
     buffer_minutes: buffer,
   });
+  if (error) throw new Error(error.message);
 
   revalidatePath(`/salon/${slug}/admin/services`);
 }
 
 export async function toggleServiceActive(serviceId: string, active: boolean, slug: string) {
   const supabase = await createClient();
-  await supabase.from("services").update({ active: !active }).eq("id", serviceId);
+  const { error } = await supabase.from("services").update({ active: !active }).eq("id", serviceId);
+  if (error) throw new Error(error.message);
   revalidatePath(`/salon/${slug}/admin/services`);
 }

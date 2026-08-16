@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
+import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
 import { SiteFooter } from "@/components/public-site/site-footer";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,9 @@ export default async function PortfolioPage({
   if (!salon) notFound();
 
   const supabase = await createClient();
-  const [{ data: artists }, { data: items }] = await Promise.all([
+  const [membership, platformAdmin, { data: artists }, { data: items }] = await Promise.all([
+    getSalonMembership(salon.id),
+    isPlatformAdmin(),
     supabase
       .from("artist_profiles")
       .select("salon_membership_id, display_name")
@@ -55,7 +58,7 @@ export default async function PortfolioPage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader salon={salon} />
+      <SiteHeader salon={salon} isStaff={!!membership} isPlatformAdmin={platformAdmin} />
       <div className="px-6 py-16 sm:px-10 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h1 className="font-heading text-4xl italic text-foreground sm:text-5xl">

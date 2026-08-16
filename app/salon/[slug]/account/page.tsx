@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 import Link from "next/link";
-import { getCurrentProfile } from "@/lib/auth/session";
+import { getCurrentProfile, getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -83,6 +83,11 @@ export default async function AccountPage({
     : { data: [] };
   const reviewedIds = new Set((reviews ?? []).map((r) => r.appointment_id));
 
+  const [membership, platformAdmin] = await Promise.all([
+    getSalonMembership(salon.id),
+    isPlatformAdmin(),
+  ]);
+
   const updateProfileAction = updateProfile.bind(null, slug);
   const signOutAction = signOut.bind(null, slug);
 
@@ -98,6 +103,22 @@ export default async function AccountPage({
           </h1>
         </div>
         <div className="flex items-center gap-4">
+          {membership && (
+            <Link
+              href={`/salon/${slug}/admin`}
+              className="font-sans text-sm text-gold hover:text-foreground"
+            >
+              Panel del salón
+            </Link>
+          )}
+          {platformAdmin && (
+            <Link
+              href="/platform-admin"
+              className="font-sans text-sm text-gold hover:text-foreground"
+            >
+              Plataforma
+            </Link>
+          )}
           <Link
             href={`/salon/${slug}/notifications`}
             className="font-sans text-sm text-muted-foreground hover:text-foreground"
