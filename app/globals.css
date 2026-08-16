@@ -130,4 +130,24 @@
   html {
     @apply font-sans;
   }
+  ::selection {
+    background: var(--gold);
+    color: #0a0a0a;
+  }
+  * {
+    scrollbar-color: var(--gold) transparent;
+    scrollbar-width: thin;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--gold);
+    border-radius: 999px;
+    border: 2px solid var(--background);
+  }
 }

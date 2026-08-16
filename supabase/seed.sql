@@ -2,19 +2,23 @@
 -- real pilot salon's data later; nothing here is a real business or person).
 -- Idempotent: safe to re-run against an existing database.
 
-insert into salons (slug, name, timezone, hero_title, hero_subtitle, footer_text, address, contact_phone, contact_email)
+insert into salons (slug, name, timezone, hero_title, hero_subtitle, hero_image_url, footer_text, address, contact_phone, contact_email)
 values (
   'atelier-noir',
   'Atelier Noir',
   'America/Bogota',
   'Atelier Noir',
   'A quiet, precise kind of luxury.',
-  '© Atelier Noir. Placeholder content — Phase 10.',
-  'Placeholder address — Phase 10',
+  'https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=2000&q=80',
+  '© Atelier Noir. Placeholder content.',
+  'Placeholder address — real pilot salon data replaces this',
   '+57 000 000 0000',
   'hello@atelier-noir.example'
 )
-on conflict (slug) do nothing;
+on conflict (slug) do update set
+  hero_image_url = excluded.hero_image_url,
+  footer_text = excluded.footer_text,
+  address = excluded.address;
 
 do $$
 declare
@@ -59,11 +63,13 @@ begin
   select id into v_sofia_membership_id from salon_memberships where salon_id = v_salon_id and profile_id = v_sofia_id;
   select id into v_valentina_membership_id from salon_memberships where salon_id = v_salon_id and profile_id = v_valentina_id;
 
-  insert into artist_profiles (salon_membership_id, salon_id, display_name, bio, specialties)
+  insert into artist_profiles (salon_membership_id, salon_id, display_name, bio, specialties, headshot_url)
   values
-    (v_sofia_membership_id, v_salon_id, 'Sofia', 'Precision manicures and hand-painted nail art.', array['Nail art', 'Gel']),
-    (v_valentina_membership_id, v_salon_id, 'Valentina', 'Specialist in acrylics and long-lasting sets.', array['Acrylics', 'Sculpted nails'])
-  on conflict (salon_membership_id) do nothing;
+    (v_sofia_membership_id, v_salon_id, 'Sofia', 'Precision manicures and hand-painted nail art.', array['Nail art', 'Gel'],
+     'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=800&q=80'),
+    (v_valentina_membership_id, v_salon_id, 'Valentina', 'Specialist in acrylics and long-lasting sets.', array['Acrylics', 'Sculpted nails'],
+     'https://images.unsplash.com/photo-1594744803329-e58b31de8bf5?w=800&q=80')
+  on conflict (salon_membership_id) do update set headshot_url = excluded.headshot_url;
 
   -- Salon open Tue–Sat 09:00–18:00, closed Sun/Mon.
   insert into salon_weekly_hours (salon_id, day_of_week, open_time, close_time)
@@ -121,5 +127,32 @@ begin
   if not exists (select 1 from services where salon_id = v_salon_id and name = 'Acrílicas') then
     insert into services (salon_id, category_id, name, description, has_variants, base_price, base_duration_minutes, buffer_minutes, sort_order)
     values (v_salon_id, v_nails_category_id, 'Acrílicas', 'Sculpted full set.', false, 55, 90, 15, 0);
+  end if;
+
+  -- Portfolio (Phase 10 CMS content). Verified-resolving Unsplash URLs.
+  if not exists (select 1 from portfolio_items where salon_id = v_salon_id) then
+    insert into portfolio_items (salon_id, salon_membership_id, image_url, title, sort_order)
+    values
+      (v_salon_id, v_sofia_membership_id, 'https://images.unsplash.com/photo-1604654894610-df63bc536371?w=1200&q=80', 'Noir & gold', 0),
+      (v_salon_id, v_sofia_membership_id, 'https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=1200&q=80', 'Hand-painted script', 1),
+      (v_salon_id, v_valentina_membership_id, 'https://images.unsplash.com/photo-1607779097040-26e80aa78e66?w=1200&q=80', 'Studio detail', 2);
+  end if;
+
+  if not exists (select 1 from brands where salon_id = v_salon_id) then
+    insert into brands (salon_id, name, sort_order)
+    values
+      (v_salon_id, 'OPI', 0),
+      (v_salon_id, 'CND Shellac', 1),
+      (v_salon_id, 'Essie', 2),
+      (v_salon_id, 'Mavala', 3);
+  end if;
+
+  if not exists (select 1 from faqs where salon_id = v_salon_id) then
+    insert into faqs (salon_id, question, answer, sort_order)
+    values
+      (v_salon_id, '¿Puedo elegir un artista específico?', 'Sí — al reservar puedes elegir un artista de tu preferencia o dejar que cualquier artista disponible tome tu cita.', 0),
+      (v_salon_id, '¿Cuál es la política de cancelación?', 'Puedes cancelar o reagendar sin costo hasta 24 horas antes de tu cita desde tu cuenta.', 1),
+      (v_salon_id, '¿Necesito dejar un depósito?', 'No por ahora — los pagos en línea llegan más adelante. El pago se realiza en el salón.', 2),
+      (v_salon_id, '¿Cuánto dura una cita de manicure?', 'Entre 45 y 75 minutos según el servicio elegido, incluyendo el tiempo de preparación.', 3);
   end if;
 end $$;
