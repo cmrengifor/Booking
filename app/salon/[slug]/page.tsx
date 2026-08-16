@@ -74,7 +74,9 @@ export default async function SalonHomePage({
       .order("sort_order"),
     supabase
       .from("reviews")
-      .select("rating, comment, salon_memberships(artist_profiles(display_name))")
+      .select(
+        "rating, comment, salon_membership_id, services(name), salon_memberships(artist_profiles(display_name))"
+      )
       .eq("salon_id", salon.id)
       .eq("status", "published")
       .order("created_at", { ascending: false })
@@ -89,9 +91,14 @@ export default async function SalonHomePage({
         categories={categories ?? []}
         services={services ?? []}
         variants={variants ?? []}
+        portfolio={portfolio ?? []}
       />
-      <PortfolioSection items={portfolio ?? []} />
       <ArtistsSection slug={slug} artists={artists ?? []} />
+      <PortfolioSection
+        items={portfolio ?? []}
+        artists={artists ?? []}
+        reviews={reviews ?? []}
+      />
       {brands?.length ? <BrandsSection brands={brands} /> : null}
       {reviews?.length ? <ReviewsSection reviews={reviews} /> : null}
       {faqs?.length ? <FaqSection faqs={faqs} /> : null}

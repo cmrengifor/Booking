@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
 import type { Salon } from "@/lib/tenant/resolve-salon";
 
 export function SiteHeader({ salon }: { salon: Salon }) {
@@ -15,20 +14,20 @@ export function SiteHeader({ salon }: { salon: Salon }) {
         <a href="#servicios" className="hidden text-muted-foreground hover:text-foreground sm:inline">
           Servicios
         </a>
-        <a href="#portfolio" className="hidden text-muted-foreground hover:text-foreground sm:inline">
+        <Link
+          href={`/salon/${salon.slug}/portfolio`}
+          className="hidden text-muted-foreground hover:text-foreground sm:inline"
+        >
           Portfolio
-        </a>
-        <a href="#equipo" className="hidden text-muted-foreground hover:text-foreground sm:inline">
-          Equipo
+        </Link>
+        <a href="#artistas" className="hidden text-muted-foreground hover:text-foreground sm:inline">
+          Nuestros Artistas
         </a>
         <Link
           href={`/salon/${salon.slug}/account`}
-          className="hidden text-muted-foreground hover:text-foreground sm:inline"
+          className="text-muted-foreground hover:text-foreground"
         >
           Mi cuenta
-        </Link>
-        <Link href={`/salon/${salon.slug}/book`} className={buttonVariants({ size: "sm" })}>
-          Reservar
         </Link>
       </nav>
     </header>

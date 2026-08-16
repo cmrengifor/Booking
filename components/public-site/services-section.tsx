@@ -1,18 +1,29 @@
 import { Reveal } from "./reveal";
+import { ImageCarousel } from "./image-carousel";
 import type { Tables } from "@/types/database";
 
 type Category = Tables<"service_categories">;
 type Service = Tables<"services">;
 type Variant = Tables<"service_variants">;
+type PortfolioItem = Tables<"portfolio_items">;
+
+/** Highest price under this service — what "flagship" ranking sorts by. */
+function rankingPrice(service: Service, variants: Variant[]) {
+  if (!service.has_variants) return service.base_price ?? 0;
+  const prices = variants.filter((v) => v.service_id === service.id).map((v) => v.price);
+  return prices.length ? Math.max(...prices) : 0;
+}
 
 export function ServicesSection({
   categories,
   services,
   variants,
+  portfolio,
 }: {
   categories: Category[];
   services: Service[];
   variants: Variant[];
+  portfolio: PortfolioItem[];
 }) {
   return (
     <section id="servicios" className="px-6 py-24 sm:px-10 sm:py-32">
@@ -25,8 +36,12 @@ export function ServicesSection({
             <ul className="flex flex-col">
               {services
                 .filter((s) => s.category_id === category.id)
+                .sort((a, b) => rankingPrice(b, variants) - rankingPrice(a, variants))
                 .map((service) => {
                   const serviceVariants = variants.filter((v) => v.service_id === service.id);
+                  const servicePhotos = portfolio
+                    .filter((p) => p.service_id === service.id)
+                    .map((p) => ({ id: p.id, src: p.image_url, alt: p.title ?? service.name }));
                   return (
                     <li key={service.id} className="border-b border-border py-5 first:pt-0">
                       <div className="flex items-baseline justify-between gap-4">
@@ -56,6 +71,9 @@ export function ServicesSection({
                             </li>
                           ))}
                         </ul>
+                      )}
+                      {servicePhotos.length > 0 && (
+                        <ImageCarousel images={servicePhotos} className="mt-4" />
                       )}
                     </li>
                   );

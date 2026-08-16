@@ -30,8 +30,8 @@ export function Hero({ salon }: { salon: Salon }) {
         <Link
           href={`/salon/${salon.slug}/book`}
           className={buttonVariants({
-            size: "lg",
-            className: "mt-2 w-fit bg-white text-black hover:bg-white/85",
+            className:
+              "mt-2 h-auto w-fit rounded-full bg-white px-8 py-4 text-base font-medium text-black shadow-lg shadow-black/20 hover:bg-white/85 sm:text-lg",
           })}
         >
           Reservar una cita

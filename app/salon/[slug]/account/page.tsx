@@ -19,18 +19,27 @@ export default async function AccountPage({
   params,
 }: PageProps<"/salon/[slug]/account">) {
   const { slug } = await params;
-  const salon = await resolveSalonBySlug(slug);
-  if (!salon) return null;
-
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("id")
-    .eq("salon_id", salon.id)
-    .eq("profile_id", profile!.id)
-    .maybeSingle();
+  const [salon, profile] = await Promise.all([
+    resolveSalonBySlug(slug),
+    getCurrentProfile(),
+  ]);
+  if (!salon) return null;
+
+  const [{ data: customer }, { count: unread }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("id")
+      .eq("salon_id", salon.id)
+      .eq("profile_id", profile!.id)
+      .maybeSingle(),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_profile_id", profile!.id)
+      .is("read_at", null),
+  ]);
 
   const { data: appointments } = customer
     ? await supabase
@@ -53,12 +62,6 @@ export default async function AccountPage({
     ? await supabase.from("reviews").select("appointment_id, rating").in("appointment_id", completedIds)
     : { data: [] };
   const reviewedIds = new Set((reviews ?? []).map((r) => r.appointment_id));
-
-  const { count: unread } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("recipient_profile_id", profile!.id)
-    .is("read_at", null);
 
   const updateProfileAction = updateProfile.bind(null, slug);
   const signOutAction = signOut.bind(null, slug);

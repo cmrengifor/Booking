@@ -226,11 +226,13 @@ export type Database = {
       }
       artist_profiles: {
         Row: {
+          about_me: string | null
           bio: string | null
           created_at: string
           display_name: string
           headshot_url: string | null
           id: string
+          interests: string[]
           published: boolean
           salon_id: string
           salon_membership_id: string
@@ -239,11 +241,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          about_me?: string | null
           bio?: string | null
           created_at?: string
           display_name: string
           headshot_url?: string | null
           id?: string
+          interests?: string[]
           published?: boolean
           salon_id: string
           salon_membership_id: string
@@ -252,11 +256,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          about_me?: string | null
           bio?: string | null
           created_at?: string
           display_name?: string
           headshot_url?: string | null
           id?: string
+          interests?: string[]
           published?: boolean
           salon_id?: string
           salon_membership_id?: string
@@ -577,6 +583,7 @@ export type Database = {
           published: boolean
           salon_id: string
           salon_membership_id: string | null
+          service_id: string | null
           sort_order: number
           title: string | null
           updated_at: string
@@ -589,6 +596,7 @@ export type Database = {
           published?: boolean
           salon_id: string
           salon_membership_id?: string | null
+          service_id?: string | null
           sort_order?: number
           title?: string | null
           updated_at?: string
@@ -601,6 +609,7 @@ export type Database = {
           published?: boolean
           salon_id?: string
           salon_membership_id?: string | null
+          service_id?: string | null
           sort_order?: number
           title?: string | null
           updated_at?: string
@@ -632,6 +641,20 @@ export type Database = {
             columns: ["salon_membership_id"]
             isOneToOne: false
             referencedRelation: "salon_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "portfolio_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_analytics"
+            referencedColumns: ["service_id"]
+          },
+          {
+            foreignKeyName: "portfolio_items_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -675,6 +698,7 @@ export type Database = {
           rating: number
           salon_id: string
           salon_membership_id: string
+          service_id: string | null
           status: Database["public"]["Enums"]["review_status"]
         }
         Insert: {
@@ -688,6 +712,7 @@ export type Database = {
           rating: number
           salon_id: string
           salon_membership_id: string
+          service_id?: string | null
           status?: Database["public"]["Enums"]["review_status"]
         }
         Update: {
@@ -701,6 +726,7 @@ export type Database = {
           rating?: number
           salon_id?: string
           salon_membership_id?: string
+          service_id?: string | null
           status?: Database["public"]["Enums"]["review_status"]
         }
         Relationships: [
@@ -751,6 +777,20 @@ export type Database = {
             columns: ["salon_membership_id"]
             isOneToOne: false
             referencedRelation: "salon_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_analytics"
+            referencedColumns: ["service_id"]
+          },
+          {
+            foreignKeyName: "reviews_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
@@ -1550,6 +1590,7 @@ export type Database = {
           rating: number
           salon_id: string
           salon_membership_id: string
+          service_id: string | null
           status: Database["public"]["Enums"]["review_status"]
         }
         SetofOptions: {
@@ -1634,6 +1675,7 @@ export type Database = {
           rating: number
           salon_id: string
           salon_membership_id: string
+          service_id: string | null
           status: Database["public"]["Enums"]["review_status"]
         }
         SetofOptions: {
