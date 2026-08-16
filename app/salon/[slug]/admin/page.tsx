@@ -19,6 +19,7 @@ export default async function AdminOverviewPage({
   const [
     { data: today },
     { count: openCount },
+    { count: pendingConfirmationCount },
     { count: pendingReviewsCount },
   ] = await Promise.all([
     supabase
@@ -36,6 +37,16 @@ export default async function AdminOverviewPage({
       .select("id", { count: "exact", head: true })
       .eq("salon_id", salon.id)
       .eq("status", "open"),
+    // Not date-scoped, same as openCount — a pending-confirmation appointment
+    // still needs Aceptar/Rechazar no matter how far in the past or future
+    // it's scheduled, so it shouldn't disappear from Overview just because
+    // it isn't today (that was the bug: a 10-day-old pending request was
+    // invisible here while still sitting unactioned in Citas).
+    supabase
+      .from("appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("salon_id", salon.id)
+      .eq("status", "pending"),
     supabase
       .from("reviews")
       .select("id", { count: "exact", head: true })
@@ -63,7 +74,7 @@ export default async function AdminOverviewPage({
         </p>
       </div>
 
-      {(openCount ?? 0) > 0 || (pendingReviewsCount ?? 0) > 0 ? (
+      {(openCount ?? 0) > 0 || (pendingConfirmationCount ?? 0) > 0 || (pendingReviewsCount ?? 0) > 0 ? (
         <div className="flex flex-col gap-2">
           {(openCount ?? 0) > 0 && (
             <Link
@@ -71,6 +82,15 @@ export default async function AdminOverviewPage({
               className="rounded-md border border-gold/40 bg-gold/5 px-4 py-3 font-sans text-sm text-foreground hover:border-gold"
             >
               {openCount} cita{openCount === 1 ? "" : "s"} abierta{openCount === 1 ? "" : "s"} sin tomar
+            </Link>
+          )}
+          {(pendingConfirmationCount ?? 0) > 0 && (
+            <Link
+              href={`/salon/${slug}/admin/appointments`}
+              className="rounded-md border border-gold/40 bg-gold/5 px-4 py-3 font-sans text-sm text-foreground hover:border-gold"
+            >
+              {pendingConfirmationCount} cita{pendingConfirmationCount === 1 ? "" : "s"} pendiente
+              {pendingConfirmationCount === 1 ? "" : "s"} de confirmación
             </Link>
           )}
           {(pendingReviewsCount ?? 0) > 0 && (
