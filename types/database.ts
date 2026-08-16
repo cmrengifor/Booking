@@ -1810,7 +1810,7 @@ export type Database = {
       }
       current_profile_id: { Args: never; Returns: string }
       decline_pending_appointment: {
-        Args: { p_appointment_id: string }
+        Args: { p_appointment_id: string; p_reason?: string }
         Returns: {
           amount_paid: number | null
           artist_preference: Database["public"]["Enums"]["artist_preference"]

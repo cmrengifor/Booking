@@ -6,10 +6,18 @@ import { StaffActions } from "./staff-actions";
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-const STATUS_LABEL: Record<string, string> = {
-  active: "Activo",
-  invited: "Invitado",
-  disabled: "Deshabilitado",
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Dueño/a",
+  manager: "Manager",
+  receptionist: "Recepción",
+  stylist: "Artista",
+};
+
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  owner: "bg-gold/15 text-gold",
+  manager: "bg-blue-500/15 text-blue-600",
+  receptionist: "bg-purple-500/15 text-purple-600",
+  stylist: "bg-emerald-500/15 text-emerald-600",
 };
 
 export default async function AdminStaffPage({
@@ -74,14 +82,21 @@ export default async function AdminStaffPage({
                     title={light.label}
                   />
                   <div>
-                    <p className="font-heading text-lg text-foreground">
-                      {m.artist_profiles?.display_name ??
-                        m.profiles?.full_name ??
-                        "Sin nombre"}
-                    </p>
-                    <p className="font-sans text-xs text-muted-foreground">
-                      {m.role} · {STATUS_LABEL[m.status] ?? m.status} · {light.label}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-heading text-lg text-foreground">
+                        {m.artist_profiles?.display_name ??
+                          m.profiles?.full_name ??
+                          "Sin nombre"}
+                      </p>
+                      <span
+                        className={`rounded-full px-2 py-0.5 font-sans text-[11px] font-medium ${
+                          ROLE_BADGE_CLASS[m.role] ?? "bg-muted text-muted-foreground"
+                        }`}
+                      >
+                        {ROLE_LABEL[m.role] ?? m.role}
+                      </span>
+                    </div>
+                    <p className="font-sans text-xs text-muted-foreground">{light.label}</p>
                     {(stats?.completed_count != null || stats?.avg_rating != null) && (
                       <p className="mt-1 font-sans text-xs text-muted-foreground">
                         {stats?.completed_count ?? 0} citas completadas

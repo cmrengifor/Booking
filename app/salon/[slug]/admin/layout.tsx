@@ -1,18 +1,9 @@
-import Link from "next/link";
+import { Toaster } from "sonner";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, getSalonMembership } from "@/lib/auth/session";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
-
-const NAV = [
-  { href: "", label: "Overview" },
-  { href: "/appointments", label: "Citas" },
-  { href: "/customers", label: "Clientes" },
-  { href: "/services", label: "Servicios" },
-  { href: "/staff", label: "Staff" },
-  { href: "/reviews", label: "Reseñas" },
-  { href: "/analytics", label: "Análisis" },
-];
+import { AdminNav } from "./admin-nav";
 
 export default async function AdminLayout({
   children,
@@ -37,23 +28,8 @@ export default async function AdminLayout({
 
   return (
     <div className="flex flex-1 flex-col">
-      <nav className="flex gap-4 border-b border-border px-8 py-4 font-sans text-sm">
-        {NAV.map((item) => (
-          <Link
-            key={item.label}
-            href={`/salon/${slug}/admin${item.href}`}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            {item.label}
-          </Link>
-        ))}
-        <Link
-          href={`/salon/${slug}/notifications`}
-          className="ml-auto text-muted-foreground hover:text-foreground"
-        >
-          Notificaciones{unread ? ` (${unread})` : ""}
-        </Link>
-      </nav>
+      <Toaster position="top-right" richColors />
+      <AdminNav slug={slug} unread={unread ?? 0} userId={user.id} />
       {children}
     </div>
   );

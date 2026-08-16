@@ -1,18 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Button } from "@/components/ui/button";
+import { Button, type buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
 
 export function TriggerActionButton({
   action,
   appointmentId,
   slug,
   label,
+  variant = "outline",
 }: {
   action: (appointmentId: string, slug: string) => Promise<{ link: string }>;
   appointmentId: string;
   slug: string;
   label: string;
+  variant?: VariantProps<typeof buttonVariants>["variant"];
 }) {
   const [pending, startTransition] = useTransition();
   const [link, setLink] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function TriggerActionButton({
 
   return (
     <div className="flex flex-col gap-1">
-      <Button size="sm" variant="outline" type="button" onClick={handleClick} disabled={pending}>
+      <Button size="sm" variant={variant} type="button" onClick={handleClick} disabled={pending}>
         {pending ? "Enviando…" : label}
       </Button>
       {link && (

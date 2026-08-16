@@ -4,10 +4,10 @@ import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { TriggerActionButton } from "./trigger-action-button";
+import { DeclineForm } from "./decline-form";
 import {
   acceptPending,
   complete,
-  declinePending,
   noShow,
   release,
   staffCancel,
@@ -127,13 +127,11 @@ export default async function AdminAppointmentsPage({
                 a stylist looking at a teammate's pending request has no
                 authorization, so hide the buttons rather than let them fail. */}
             {(!isStylist || a.salon_membership_id === membership?.id) && (
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <form action={acceptPending.bind(null, a.id, slug)}>
-                  <Button size="sm" type="submit">Aceptar</Button>
+                  <Button size="sm" variant="success" type="submit">Aceptar</Button>
                 </form>
-                <form action={declinePending.bind(null, a.id, slug)}>
-                  <Button size="sm" variant="outline" type="submit">Rechazar</Button>
-                </form>
+                <DeclineForm appointmentId={a.id} slug={slug} />
               </div>
             )}
           </li>
@@ -171,10 +169,10 @@ export default async function AdminAppointmentsPage({
                       defaultValue={a.price ?? undefined}
                       className="w-20 rounded-md border border-input bg-background px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-ring"
                     />
-                    <Button size="sm" type="submit">Completar</Button>
+                    <Button size="sm" variant="success" type="submit">Completar</Button>
                   </form>
                   <form action={noShow.bind(null, a.id, slug)}>
-                    <Button size="sm" variant="outline" type="submit">No asistió</Button>
+                    <Button size="sm" variant="warning" type="submit">No asistió</Button>
                   </form>
                   <form action={release.bind(null, a.id, slug)}>
                     <Button size="sm" variant="outline" type="submit">Liberar</Button>
@@ -185,7 +183,7 @@ export default async function AdminAppointmentsPage({
                   their own appointment — only rec/mgr/owner. */}
               {!isStylist && (
                 <form action={staffCancel.bind(null, a.id, slug)}>
-                  <Button size="sm" variant="ghost" type="submit">Cancelar</Button>
+                  <Button size="sm" variant="destructive" type="submit">Cancelar</Button>
                 </form>
               )}
             </div>
@@ -211,6 +209,7 @@ export default async function AdminAppointmentsPage({
                 appointmentId={a.id}
                 slug={slug}
                 label="Enviar encuesta"
+                variant="success"
               />
             </div>
           </li>
@@ -235,6 +234,7 @@ export default async function AdminAppointmentsPage({
                 appointmentId={a.id}
                 slug={slug}
                 label="Hacer seguimiento"
+                variant="destructive"
               />
             </div>
           </li>

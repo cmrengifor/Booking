@@ -71,7 +71,9 @@ export default async function AdminServicesPage({
         {categories?.map((category) => (
           <div
             key={category.id}
-            className="rounded-md border border-border p-4"
+            className={`rounded-md border p-4 transition-colors ${
+              category.active ? "border-border" : "border-border/60 bg-muted/20 opacity-70"
+            }`}
           >
             <div className="flex items-center justify-between">
               <h2 className="font-heading text-lg text-foreground">
@@ -108,7 +110,9 @@ export default async function AdminServicesPage({
                   return (
                     <li
                       key={service.id}
-                      className="flex flex-col gap-2 rounded-md bg-muted/40 px-3 py-2 font-sans text-sm"
+                      className={`flex flex-col gap-2 rounded-md px-3 py-2 font-sans text-sm transition-colors ${
+                        service.active ? "bg-muted/40" : "bg-red-500/5 opacity-70"
+                      }`}
                     >
                       <div className="flex items-center justify-between">
                         <div>

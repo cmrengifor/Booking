@@ -38,8 +38,56 @@ export const takeOpenAppointment = async (
 export const acceptPending = async (appointmentId: string, slug: string) =>
   callRpc(slug, "accept_pending_appointment", { p_appointment_id: appointmentId });
 
-export const declinePending = async (appointmentId: string, slug: string) =>
-  callRpc(slug, "decline_pending_appointment", { p_appointment_id: appointmentId });
+const DECLINE_REASON_TEXT: Record<string, string> = {
+  artist_unavailable: "El artista no está disponible en ese horario.",
+  time_conflict: "El horario solicitado ya no está disponible.",
+};
+
+/** Declining a pending request also explains why, by email — staff picks a
+ *  short reason (or writes one) in the UI, which both gets stored as the
+ *  appointment's cancellation_reason and used to word the email. */
+export async function declinePending(appointmentId: string, slug: string, formData: FormData) {
+  const reasonCode = String(formData.get("reason") ?? "artist_unavailable");
+  const customReason = String(formData.get("custom_reason") ?? "").trim();
+  const reasonText =
+    reasonCode === "other" ? customReason || "No fue posible confirmar tu cita." : DECLINE_REASON_TEXT[reasonCode];
+  const storedReason = reasonCode === "other" ? customReason || "other" : reasonCode;
+
+  const supabase = await createClient();
+  const { data: appt } = await supabase
+    .from("appointments")
+    .select("id, services(name), customers(profile_id, profiles(full_name))")
+    .eq("id", appointmentId)
+    .single();
+
+  const { error } = await supabase.rpc("decline_pending_appointment", {
+    p_appointment_id: appointmentId,
+    p_reason: storedReason,
+  });
+  if (error) throw new Error(error.message);
+
+  if (appt?.customers?.profile_id) {
+    const admin = createAdminClient();
+    const { data: authUser } = await admin.auth.admin.getUserById(appt.customers.profile_id);
+    const email = authUser?.user?.email;
+    const firstName = appt.customers?.profiles?.full_name?.split(" ")[0] ?? "";
+    if (email) {
+      await sendEmail({
+        to: email,
+        subject: "No pudimos confirmar tu cita",
+        body: `Hola ${firstName},
+
+Lamentamos informarte que no pudimos confirmar tu solicitud de cita${appt.services?.name ? ` para ${appt.services.name}` : ""}.
+
+Motivo: ${reasonText}
+
+Puedes hacer una nueva reserva desde el sitio cuando quieras — lo sentimos por el inconveniente.`,
+      });
+    }
+  }
+
+  revalidatePath(`/salon/${slug}/admin/appointments`);
+}
 
 export const release = async (appointmentId: string, slug: string) =>
   callRpc(slug, "release_appointment", { p_appointment_id: appointmentId, p_reason: null });
