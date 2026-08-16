@@ -3,6 +3,7 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
+import { TriggerActionButton } from "./trigger-action-button";
 import {
   acceptPending,
   complete,
@@ -11,6 +12,8 @@ import {
   release,
   staffCancel,
   takeOpenAppointment,
+  triggerNpsSurvey,
+  triggerRescheduleFollowup,
 } from "./actions";
 
 export default async function AdminAppointmentsPage({
@@ -23,7 +26,7 @@ export default async function AdminAppointmentsPage({
   const membership = await getSalonMembership(salon.id);
   const supabase = await createClient();
 
-  const [{ data: appointments }, { data: stylists }] = await Promise.all([
+  const [{ data: appointments }, { data: pastAppointments }, { data: stylists }] = await Promise.all([
     supabase
       .from("appointments")
       .select(
@@ -31,6 +34,14 @@ export default async function AdminAppointmentsPage({
       )
       .in("status", ["open", "pending", "confirmed"])
       .order("starts_at"),
+    supabase
+      .from("appointments")
+      .select(
+        "id, status, starts_at, price, amount_paid, cancellation_reason, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
+      )
+      .in("status", ["completed", "cancelled", "no_show"])
+      .order("starts_at", { ascending: false })
+      .limit(50),
     supabase
       .from("salon_memberships")
       .select("id, artist_profiles(display_name)")
@@ -42,6 +53,9 @@ export default async function AdminAppointmentsPage({
   const open = (appointments ?? []).filter((a) => a.status === "open");
   const pending = (appointments ?? []).filter((a) => a.status === "pending");
   const confirmed = (appointments ?? []).filter((a) => a.status === "confirmed");
+  const completedList = (pastAppointments ?? []).filter((a) => a.status === "completed");
+  const cancelledList = (pastAppointments ?? []).filter((a) => a.status === "cancelled");
+  const noShowList = (pastAppointments ?? []).filter((a) => a.status === "no_show");
   const isStylist = membership?.role === "stylist";
 
   function fmt(a: { starts_at: string }) {
@@ -178,6 +192,70 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!confirmed.length && <Empty />}
+      </Section>
+
+      <Section title={`Completadas (${completedList.length})`}>
+        {completedList.map((a) => (
+          <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
+            <p className="text-foreground">
+              {a.services?.name}
+              {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
+            </p>
+            <p className="text-muted-foreground">
+              {a.customers?.profiles?.full_name} ·{" "}
+              {a.salon_memberships?.artist_profiles?.display_name} · ${a.amount_paid ?? a.price}
+            </p>
+            <div className="mt-2">
+              <TriggerActionButton
+                action={triggerNpsSurvey}
+                appointmentId={a.id}
+                slug={slug}
+                label="Enviar encuesta"
+              />
+            </div>
+          </li>
+        ))}
+        {!completedList.length && <Empty />}
+      </Section>
+
+      <Section title={`Canceladas (${cancelledList.length})`}>
+        {cancelledList.map((a) => (
+          <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
+            <p className="text-foreground">
+              {a.services?.name}
+              {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
+            </p>
+            <p className="text-muted-foreground">
+              {a.customers?.profiles?.full_name}
+              {a.cancellation_reason && ` · ${a.cancellation_reason}`}
+            </p>
+            <div className="mt-2">
+              <TriggerActionButton
+                action={triggerRescheduleFollowup}
+                appointmentId={a.id}
+                slug={slug}
+                label="Hacer seguimiento"
+              />
+            </div>
+          </li>
+        ))}
+        {!cancelledList.length && <Empty />}
+      </Section>
+
+      <Section title={`No asistió (${noShowList.length})`}>
+        {noShowList.map((a) => (
+          <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
+            <p className="text-foreground">
+              {a.services?.name}
+              {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
+            </p>
+            <p className="text-muted-foreground">
+              {a.customers?.profiles?.full_name} ·{" "}
+              {a.salon_memberships?.artist_profiles?.display_name}
+            </p>
+          </li>
+        ))}
+        {!noShowList.length && <Empty />}
       </Section>
     </div>
   );

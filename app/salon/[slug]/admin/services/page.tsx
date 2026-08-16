@@ -2,7 +2,18 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
-import { createCategory, createService, toggleServiceActive } from "./actions";
+import { ActiveSwitch } from "./active-switch";
+import { DeleteButton } from "./delete-button";
+import { SplitInput } from "./split-input";
+import { PromotionsSection } from "./promotions-section";
+import {
+  createCategory,
+  createService,
+  deleteCategory,
+  deleteService,
+  toggleCategoryActive,
+  toggleServiceActive,
+} from "./actions";
 
 export default async function AdminServicesPage({
   params,
@@ -18,7 +29,7 @@ export default async function AdminServicesPage({
   const canEdit = membership?.role === "owner" || membership?.role === "manager";
 
   const supabase = await createClient();
-  const [{ data: categories }, { data: services }, { data: variants }] =
+  const [{ data: categories }, { data: services }, { data: variants }, { data: promotions }] =
     await Promise.all([
       supabase
         .from("service_categories")
@@ -35,6 +46,11 @@ export default async function AdminServicesPage({
         .select("*")
         .eq("salon_id", salon.id)
         .order("sort_order"),
+      supabase
+        .from("service_promotions")
+        .select("*")
+        .eq("salon_id", salon.id)
+        .order("starts_at", { ascending: false }),
     ]);
 
   const createCategoryAction = createCategory.bind(null, salon.id, slug);
@@ -57,9 +73,31 @@ export default async function AdminServicesPage({
             key={category.id}
             className="rounded-md border border-border p-4"
           >
-            <h2 className="font-heading text-lg text-foreground">
-              {category.name}
-            </h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-heading text-lg text-foreground">
+                {category.name}
+              </h2>
+              {canEdit ? (
+                <div className="flex items-center gap-3">
+                  <ActiveSwitch
+                    action={toggleCategoryActive}
+                    id={category.id}
+                    slug={slug}
+                    active={category.active}
+                  />
+                  <DeleteButton
+                    action={deleteCategory}
+                    id={category.id}
+                    slug={slug}
+                    confirmMessage={`¿Eliminar la categoría "${category.name}"? Si tiene servicios asociados, se archivará en su lugar.`}
+                  />
+                </div>
+              ) : (
+                <span className="font-sans text-xs text-muted-foreground">
+                  {category.active ? "Activa" : "Inactiva"}
+                </span>
+              )}
+            </div>
             <ul className="mt-3 flex flex-col gap-2">
               {services
                 ?.filter((s) => s.category_id === category.id)
@@ -70,42 +108,64 @@ export default async function AdminServicesPage({
                   return (
                     <li
                       key={service.id}
-                      className="flex items-center justify-between rounded-md bg-muted/40 px-3 py-2 font-sans text-sm"
+                      className="flex flex-col gap-2 rounded-md bg-muted/40 px-3 py-2 font-sans text-sm"
                     >
-                      <div>
-                        <span className="text-foreground">
-                          {service.name}
-                        </span>{" "}
-                        {service.has_variants ? (
-                          <span className="text-muted-foreground">
-                            {serviceVariants
-                              ?.map((v) => `${v.name} $${v.price}`)
-                              .join(" · ")}
-                          </span>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-foreground">
+                            {service.name}
+                          </span>{" "}
+                          {service.has_variants ? (
+                            <span className="text-muted-foreground">
+                              {serviceVariants
+                                ?.map((v) => `${v.name} $${v.price}`)
+                                .join(" · ")}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">
+                              ${service.base_price} ·{" "}
+                              {service.base_duration_minutes} min
+                            </span>
+                          )}
+                        </div>
+                        {canEdit ? (
+                          <div className="flex items-center gap-3">
+                            <ActiveSwitch
+                              action={toggleServiceActive}
+                              id={service.id}
+                              slug={slug}
+                              active={service.active}
+                            />
+                            <DeleteButton
+                              action={deleteService}
+                              id={service.id}
+                              slug={slug}
+                              confirmMessage={`¿Eliminar "${service.name}"? Si tiene citas asociadas, se archivará en su lugar.`}
+                            />
+                          </div>
                         ) : (
-                          <span className="text-muted-foreground">
-                            ${service.base_price} ·{" "}
-                            {service.base_duration_minutes} min
+                          <span className="font-sans text-xs text-muted-foreground">
+                            {service.active ? "Activo" : "Inactivo"}
                           </span>
                         )}
                       </div>
-                      {canEdit ? (
-                        <form
-                          action={toggleServiceActive.bind(
-                            null,
-                            service.id,
-                            service.active,
-                            slug
-                          )}
-                        >
-                          <Button variant="ghost" size="xs" type="submit">
-                            {service.active ? "Activo" : "Inactivo"}
-                          </Button>
-                        </form>
-                      ) : (
-                        <span className="font-sans text-xs text-muted-foreground">
-                          {service.active ? "Activo" : "Inactivo"}
-                        </span>
+                      {canEdit && (
+                        <>
+                          <SplitInput
+                            serviceId={service.id}
+                            slug={slug}
+                            initialSplit={service.artist_split_percent}
+                          />
+                          <PromotionsSection
+                            serviceId={service.id}
+                            salonId={salon.id}
+                            slug={slug}
+                            timezone={salon.timezone}
+                            promotions={
+                              promotions?.filter((p) => p.service_id === service.id) ?? []
+                            }
+                          />
+                        </>
                       )}
                     </li>
                   );

@@ -5,6 +5,7 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { markAllRead, markRead } from "./actions";
+import { BackButton } from "./back-button";
 
 const TYPE_LABELS: Record<string, string> = {
   booking_requested: "Solicitud enviada",
@@ -40,6 +41,7 @@ export default async function NotificationsPage({
 
   return (
     <div className="flex flex-col gap-6 p-8">
+      <BackButton />
       <div className="flex items-center justify-between">
         <div>
           <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">

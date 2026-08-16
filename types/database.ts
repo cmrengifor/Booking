@@ -39,6 +39,58 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_action_tokens: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          purpose: Database["public"]["Enums"]["appointment_token_purpose"]
+          salon_id: string
+          used_at: string | null
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          purpose: Database["public"]["Enums"]["appointment_token_purpose"]
+          salon_id: string
+          used_at?: string | null
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          purpose?: Database["public"]["Enums"]["appointment_token_purpose"]
+          salon_id?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_action_tokens_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_action_tokens_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "appointment_action_tokens_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointment_events: {
         Row: {
           actor_profile_id: string | null
@@ -612,6 +664,62 @@ export type Database = {
           },
         ]
       }
+      nps_responses: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          customer_id: string
+          id: string
+          salon_id: string
+          score: number
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          salon_id: string
+          score: number
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          salon_id?: string
+          score?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "nps_responses_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nps_responses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "nps_responses_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "nps_responses_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
           granted_at: string
@@ -1133,6 +1241,65 @@ export type Database = {
           },
         ]
       }
+      service_promotions: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          ends_at: string
+          id: string
+          salon_id: string
+          service_id: string
+          starts_at: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          ends_at: string
+          id?: string
+          salon_id: string
+          service_id: string
+          starts_at: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          ends_at?: string
+          id?: string
+          salon_id?: string
+          service_id?: string
+          starts_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_promotions_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "service_promotions_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_promotions_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_analytics"
+            referencedColumns: ["service_id"]
+          },
+          {
+            foreignKeyName: "service_promotions_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_variants: {
         Row: {
           active: boolean
@@ -1207,6 +1374,7 @@ export type Database = {
       services: {
         Row: {
           active: boolean
+          artist_split_percent: number
           base_duration_minutes: number | null
           base_price: number | null
           buffer_minutes: number
@@ -1223,6 +1391,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          artist_split_percent?: number
           base_duration_minutes?: number | null
           base_price?: number | null
           buffer_minutes?: number
@@ -1239,6 +1408,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          artist_split_percent?: number
           base_duration_minutes?: number | null
           base_price?: number | null
           buffer_minutes?: number
@@ -1856,6 +2026,7 @@ export type Database = {
         | "cancelled"
         | "completed"
         | "no_show"
+      appointment_token_purpose: "reschedule_followup" | "nps_survey"
       artist_preference: "specific" | "any"
       membership_status: "invited" | "active" | "disabled"
       notification_type:
@@ -2021,6 +2192,7 @@ export const Constants = {
         "completed",
         "no_show",
       ],
+      appointment_token_purpose: ["reschedule_followup", "nps_survey"],
       artist_preference: ["specific", "any"],
       membership_status: ["invited", "active", "disabled"],
       notification_type: [
