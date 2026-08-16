@@ -21,12 +21,17 @@ export function AnalogClock({
 }) {
   const [hoveredHour, setHoveredHour] = useState<number | null>(null);
 
-  const hours = Array.from({ length: 12 }, (_, i) => 8 + i); // 8..19, 20 sits at 12 o'clock too
+  const hours = Array.from({ length: 12 }, (_, i) => 8 + i); // 8..19
   const center = 60;
   const radius = 48;
 
+  // Real clock-face position, not array order: 12 sits at the top, 1-11
+  // clockwise from there — an hour's slot is determined by hour % 12 (so 8am
+  // and 8pm would share a slot on a real clock; this range never has both).
+  const clockAngle = (hour: number) => ((hour % 12) / 12) * 360 - 90;
+
   const handHour = hoveredHour ?? selectedHour ?? 8;
-  const handAngle = ((handHour - 8) / 12) * 360 - 90;
+  const handAngle = clockAngle(handHour);
   const handRad = (handAngle * Math.PI) / 180;
   const handX = center + radius * 0.7 * Math.cos(handRad);
   const handY = center + radius * 0.7 * Math.sin(handRad);
@@ -40,14 +45,14 @@ export function AnalogClock({
       onMouseLeave={() => setHoveredHour(null)}
     >
       <circle cx={center} cy={center} r={radius} className="fill-muted/40 stroke-border" strokeWidth={1} />
-      {hours.map((hour, i) => {
-        const angle = (i / 12) * 360 - 90;
+      {hours.map((hour) => {
+        const angle = clockAngle(hour);
         const rad = (angle * Math.PI) / 180;
         const x = center + radius * 0.8 * Math.cos(rad);
         const y = center + radius * 0.8 * Math.sin(rad);
         const available = availableHours.has(hour);
         const isSelected = selectedHour === hour;
-        const label = hour > 12 ? hour - 12 : hour;
+        const label = String(hour).padStart(2, "0");
         return (
           <g
             key={hour}
