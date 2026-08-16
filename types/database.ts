@@ -39,6 +39,163 @@ export type Database = {
   }
   public: {
     Tables: {
+      appointment_events: {
+        Row: {
+          actor_profile_id: string | null
+          appointment_id: string
+          created_at: string
+          event_type: Database["public"]["Enums"]["appointment_event_type"]
+          id: string
+          metadata: Json
+          new_status: Database["public"]["Enums"]["appointment_status"] | null
+          previous_status:
+            | Database["public"]["Enums"]["appointment_status"]
+            | null
+          salon_id: string
+        }
+        Insert: {
+          actor_profile_id?: string | null
+          appointment_id: string
+          created_at?: string
+          event_type: Database["public"]["Enums"]["appointment_event_type"]
+          id?: string
+          metadata?: Json
+          new_status?: Database["public"]["Enums"]["appointment_status"] | null
+          previous_status?:
+            | Database["public"]["Enums"]["appointment_status"]
+            | null
+          salon_id: string
+        }
+        Update: {
+          actor_profile_id?: string | null
+          appointment_id?: string
+          created_at?: string
+          event_type?: Database["public"]["Enums"]["appointment_event_type"]
+          id?: string
+          metadata?: Json
+          new_status?: Database["public"]["Enums"]["appointment_status"] | null
+          previous_status?:
+            | Database["public"]["Enums"]["appointment_status"]
+            | null
+          salon_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_events_actor_profile_id_fkey"
+            columns: ["actor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_events_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_events_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        Insert: {
+          amount_paid?: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason?: string | null
+          created_at?: string
+          customer_id: string
+          ends_at: string
+          id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id?: string | null
+          service_id: string
+          service_variant_id?: string | null
+          starts_at: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Update: {
+          amount_paid?: number | null
+          artist_preference?: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason?: string | null
+          created_at?: string
+          customer_id?: string
+          ends_at?: string
+          id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          price?: number
+          salon_id?: string
+          salon_membership_id?: string | null
+          service_id?: string
+          service_variant_id?: string | null
+          starts_at?: string
+          status?: Database["public"]["Enums"]["appointment_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_salon_membership_id_fkey"
+            columns: ["salon_membership_id"]
+            isOneToOne: false
+            referencedRelation: "salon_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_variant_id_fkey"
+            columns: ["service_variant_id"]
+            isOneToOne: false
+            referencedRelation: "service_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       artist_profiles: {
         Row: {
           bio: string | null
@@ -591,15 +748,316 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_open_appointment: {
+        Args: { p_appointment_id: string; p_assign_to_membership_id?: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      accept_pending_appointment: {
+        Args: { p_appointment_id: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      book_appointment: {
+        Args: {
+          p_artist_preference: Database["public"]["Enums"]["artist_preference"]
+          p_salon_id: string
+          p_salon_membership_id: string
+          p_service_id: string
+          p_service_variant_id: string
+          p_starts_at: string
+        }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      cancel_appointment: {
+        Args: { p_appointment_id: string; p_reason?: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      complete_appointment: {
+        Args: { p_amount_paid: number; p_appointment_id: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       current_profile_id: { Args: never; Returns: string }
+      decline_pending_appointment: {
+        Args: { p_appointment_id: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_or_create_customer: {
+        Args: { p_profile_id: string; p_salon_id: string }
+        Returns: string
+      }
+      get_public_artist_time_off: {
+        Args: { p_from: string; p_salon_membership_id: string; p_to: string }
+        Returns: {
+          end_date: string
+          start_date: string
+        }[]
+      }
+      get_public_artist_weekly_hours: {
+        Args: { p_salon_membership_id: string }
+        Returns: {
+          break_end: string
+          break_start: string
+          day_of_week: number
+          end_time: string
+          start_time: string
+        }[]
+      }
+      get_public_busy_intervals: {
+        Args: { p_from: string; p_salon_membership_id: string; p_to: string }
+        Returns: {
+          ends_at: string
+          starts_at: string
+        }[]
+      }
       is_platform_admin: { Args: never; Returns: boolean }
+      mark_no_show: {
+        Args: { p_appointment_id: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      release_appointment: {
+        Args: { p_appointment_id: string; p_reason?: string }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      reschedule_appointment: {
+        Args: {
+          p_appointment_id: string
+          p_new_salon_membership_id?: string
+          p_new_starts_at: string
+        }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       staff_role_for_salon: {
         Args: { p_salon_id: string }
         Returns: Database["public"]["Enums"]["salon_role"]
       }
     }
     Enums: {
+      appointment_event_type:
+        | "created"
+        | "assigned"
+        | "accepted"
+        | "released"
+        | "declined"
+        | "rescheduled"
+        | "cancelled"
+        | "completed"
+        | "no_show"
+      appointment_status:
+        | "open"
+        | "pending"
+        | "confirmed"
+        | "cancelled"
+        | "completed"
+        | "no_show"
+      artist_preference: "specific" | "any"
       membership_status: "invited" | "active" | "disabled"
+      payment_status: "unpaid" | "paid"
       salon_role: "owner" | "manager" | "receptionist" | "stylist"
       salon_status: "active" | "suspended"
     }
@@ -732,7 +1190,28 @@ export const Constants = {
   },
   public: {
     Enums: {
+      appointment_event_type: [
+        "created",
+        "assigned",
+        "accepted",
+        "released",
+        "declined",
+        "rescheduled",
+        "cancelled",
+        "completed",
+        "no_show",
+      ],
+      appointment_status: [
+        "open",
+        "pending",
+        "confirmed",
+        "cancelled",
+        "completed",
+        "no_show",
+      ],
+      artist_preference: ["specific", "any"],
       membership_status: ["invited", "active", "disabled"],
+      payment_status: ["unpaid", "paid"],
       salon_role: ["owner", "manager", "receptionist", "stylist"],
       salon_status: ["active", "suspended"],
     },

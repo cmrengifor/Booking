@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useSalon } from "@/lib/tenant/salon-context";
+import { buttonVariants } from "@/components/ui/button";
 
 // Placeholder public landing. Real landing page is Phase 10 (impeccable).
 export default function SalonHomePage() {
@@ -17,6 +19,9 @@ export default function SalonHomePage() {
         Public landing page placeholder — the real one is built in Phase 10.
         Timezone: {salon.timezone}.
       </p>
+      <Link href={`/salon/${salon.slug}/book`} className={buttonVariants({ className: "mt-2" })}>
+        Reservar
+      </Link>
     </div>
   );
 }
