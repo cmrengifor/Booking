@@ -48,6 +48,12 @@ export default async function AccountPage({
   );
   const history = (appointments ?? []).filter((a) => !upcoming.includes(a));
 
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_profile_id", profile!.id)
+    .is("read_at", null);
+
   const updateProfileAction = updateProfile.bind(null, slug);
   const signOutAction = signOut.bind(null, slug);
 
@@ -62,11 +68,19 @@ export default async function AccountPage({
             {profile?.full_name || "Cliente"}
           </h1>
         </div>
-        <form action={signOutAction}>
-          <Button variant="ghost" size="sm" type="submit">
-            Cerrar sesión
-          </Button>
-        </form>
+        <div className="flex items-center gap-4">
+          <Link
+            href={`/salon/${slug}/notifications`}
+            className="font-sans text-sm text-muted-foreground hover:text-foreground"
+          >
+            Notificaciones{unread ? ` (${unread})` : ""}
+          </Link>
+          <form action={signOutAction}>
+            <Button variant="ghost" size="sm" type="submit">
+              Cerrar sesión
+            </Button>
+          </form>
+        </div>
       </div>
 
       <form

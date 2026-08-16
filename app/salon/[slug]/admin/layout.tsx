@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, getSalonMembership } from "@/lib/auth/session";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { createClient } from "@/lib/supabase/server";
 
 const NAV = [
   { href: "", label: "Overview" },
@@ -25,6 +26,13 @@ export default async function AdminLayout({
   const membership = await getSalonMembership(salon.id);
   if (!membership) redirect(`/salon/${slug}`);
 
+  const supabase = await createClient();
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("recipient_profile_id", user.id)
+    .is("read_at", null);
+
   return (
     <div className="flex flex-1 flex-col">
       <nav className="flex gap-4 border-b border-border px-8 py-4 font-sans text-sm">
@@ -37,6 +45,12 @@ export default async function AdminLayout({
             {item.label}
           </Link>
         ))}
+        <Link
+          href={`/salon/${slug}/notifications`}
+          className="ml-auto text-muted-foreground hover:text-foreground"
+        >
+          Notificaciones{unread ? ` (${unread})` : ""}
+        </Link>
       </nav>
       {children}
     </div>

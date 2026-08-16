@@ -292,6 +292,64 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          recipient_profile_id: string
+          related_appointment_id: string | null
+          salon_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_profile_id: string
+          related_appointment_id?: string | null
+          salon_id: string
+          title: string
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          recipient_profile_id?: string
+          related_appointment_id?: string | null
+          salon_id?: string
+          title?: string
+          type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_related_appointment_id_fkey"
+            columns: ["related_appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
           granted_at: string
@@ -1057,6 +1115,16 @@ export type Database = {
         | "no_show"
       artist_preference: "specific" | "any"
       membership_status: "invited" | "active" | "disabled"
+      notification_type:
+        | "booking_requested"
+        | "booking_confirmed"
+        | "booking_rejected"
+        | "appointment_rescheduled"
+        | "appointment_cancelled"
+        | "appointment_reminder"
+        | "review_request"
+        | "open_appointment_available"
+        | "appointment_assigned"
       payment_status: "unpaid" | "paid"
       salon_role: "owner" | "manager" | "receptionist" | "stylist"
       salon_status: "active" | "suspended"
@@ -1211,6 +1279,17 @@ export const Constants = {
       ],
       artist_preference: ["specific", "any"],
       membership_status: ["invited", "active", "disabled"],
+      notification_type: [
+        "booking_requested",
+        "booking_confirmed",
+        "booking_rejected",
+        "appointment_rescheduled",
+        "appointment_cancelled",
+        "appointment_reminder",
+        "review_request",
+        "open_appointment_available",
+        "appointment_assigned",
+      ],
       payment_status: ["unpaid", "paid"],
       salon_role: ["owner", "manager", "receptionist", "stylist"],
       salon_status: ["active", "suspended"],
