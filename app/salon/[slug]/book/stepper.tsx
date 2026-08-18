@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Ubicación", "Servicio", "Artista", "Fecha", "Hora", "Confirmar"];
+const STEPS = ["Ubicación", "Servicio", "Artista", "Fecha", "Hora", "Pago", "Confirmar"];
 
 export function Stepper({ current }: { current: number }) {
   return (

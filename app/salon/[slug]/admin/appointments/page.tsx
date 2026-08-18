@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { TriggerActionButton } from "./trigger-action-button";
 import { DeclineForm } from "./decline-form";
+import { CollapsibleSection } from "./collapsible-section";
 import {
   acceptPending,
   complete,
@@ -71,7 +72,7 @@ export default async function AdminAppointmentsPage({
         <h1 className="mt-2 font-heading text-3xl text-foreground">Citas</h1>
       </div>
 
-      <Section title={`Abiertas (${open.length})`}>
+      <CollapsibleSection title={`Abiertas (${open.length})`}>
         {open.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -109,9 +110,9 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!open.length && <Empty />}
-      </Section>
+      </CollapsibleSection>
 
-      <Section title={`Pendientes de confirmación (${pending.length})`}>
+      <CollapsibleSection title={`Pendientes de confirmación (${pending.length})`}>
         {pending.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -137,9 +138,9 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!pending.length && <Empty />}
-      </Section>
+      </CollapsibleSection>
 
-      <Section title={`Confirmadas (${confirmed.length})`}>
+      <CollapsibleSection title={`Confirmadas (${confirmed.length})`}>
         {confirmed.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -190,9 +191,9 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!confirmed.length && <Empty />}
-      </Section>
+      </CollapsibleSection>
 
-      <Section title={`Completadas (${completedList.length})`}>
+      <CollapsibleSection title={`Completadas (${completedList.length})`}>
         {completedList.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -215,9 +216,9 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!completedList.length && <Empty />}
-      </Section>
+      </CollapsibleSection>
 
-      <Section title={`Canceladas (${cancelledList.length})`}>
+      <CollapsibleSection title={`Canceladas (${cancelledList.length})`}>
         {cancelledList.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -240,9 +241,9 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!cancelledList.length && <Empty />}
-      </Section>
+      </CollapsibleSection>
 
-      <Section title={`No asistió (${noShowList.length})`}>
+      <CollapsibleSection title={`No asistió (${noShowList.length})`}>
         {noShowList.map((a) => (
           <li key={a.id} className="rounded-md border border-border px-4 py-3 font-sans text-sm">
             <p className="text-foreground">
@@ -256,16 +257,7 @@ export default async function AdminAppointmentsPage({
           </li>
         ))}
         {!noShowList.length && <Empty />}
-      </Section>
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <h2 className="font-heading text-lg text-foreground">{title}</h2>
-      <ul className="mt-3 flex flex-col gap-2">{children}</ul>
+      </CollapsibleSection>
     </div>
   );
 }

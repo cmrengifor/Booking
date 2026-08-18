@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function PlatformAdminSalonsPage() {
@@ -15,12 +16,14 @@ export default async function PlatformAdminSalonsPage() {
       <h1 className="mt-2 font-heading text-3xl text-foreground">Salones</h1>
       <ul className="mt-6 flex flex-col gap-2">
         {salons?.map((salon) => (
-          <li
-            key={salon.id}
-            className="flex items-center justify-between rounded-md border border-border px-4 py-3 font-sans text-sm"
-          >
-            <span>{salon.name}</span>
-            <span className="text-muted-foreground">{salon.status}</span>
+          <li key={salon.id}>
+            <Link
+              href={`/salon/${salon.slug}`}
+              className="flex items-center justify-between rounded-md border border-border px-4 py-3 font-sans text-sm transition-colors hover:border-gold"
+            >
+              <span className="text-foreground">{salon.name}</span>
+              <span className="text-muted-foreground">{salon.status}</span>
+            </Link>
           </li>
         ))}
         {!salons?.length && (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Bell } from "lucide-react";
+import { Bell, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/database";
@@ -90,9 +90,16 @@ export function AdminNav({
         );
       })}
       <Link
+        href={`/salon/${slug}`}
+        className="ml-auto flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+      >
+        <ExternalLink className="size-4" />
+        Ver sitio
+      </Link>
+      <Link
         href={`/salon/${slug}/notifications`}
         aria-label="Notificaciones"
-        className="relative ml-auto text-muted-foreground hover:text-foreground"
+        className="relative text-muted-foreground hover:text-foreground"
       >
         <Bell className="size-5" />
         {hasUnread && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-red-500" />}

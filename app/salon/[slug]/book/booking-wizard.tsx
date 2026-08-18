@@ -10,7 +10,9 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import type { Tables } from "@/types/database";
 import { Stepper } from "./stepper";
 import { TimePicker } from "./time-picker";
-import { confirmBooking, getAvailableSlots } from "./actions";
+import { PaymentStep } from "./payment-step";
+import { HomeServiceSection } from "./home-service-section";
+import { bookAsGuest, confirmBooking, getAvailableSlots, updateMyPhone } from "./actions";
 
 type Salon = Tables<"salons">;
 type Location = { id: string; name: string; address: string | null };
@@ -22,6 +24,8 @@ type Artist = {
   bio: string | null;
   location_id: string | null;
 };
+type HomeServiceZone = { id: string; name: string; surcharge: number };
+type PaymentMethod = "pse" | "transferencia" | "efectivo";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -33,6 +37,7 @@ export function BookingWizard(props: {
   services: Service[];
   variants: Variant[];
   artists: Artist[];
+  homeServiceZones: HomeServiceZone[];
 }) {
   return (
     <Suspense fallback={null}>
@@ -47,12 +52,14 @@ function BookingWizardInner({
   services,
   variants,
   artists,
+  homeServiceZones,
 }: {
   salon: Salon;
   locations: Location[];
   services: Service[];
   variants: Variant[];
   artists: Artist[];
+  homeServiceZones: HomeServiceZone[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -64,6 +71,8 @@ function BookingWizardInner({
   const artistId = searchParams.get("artistId");
   const date = searchParams.get("date");
   const startsAt = searchParams.get("startsAt");
+  const paymentMethod = searchParams.get("paymentMethod") as PaymentMethod | null;
+  const paymentDetail = searchParams.get("paymentDetail") ?? "";
 
   // Local-only: expanding a service-with-variants must never touch the URL
   // (it's still the same step) — only the final leaf choice (a service with
@@ -73,6 +82,14 @@ function BookingWizardInner({
   const [expandedServiceId, setExpandedServiceId] = useState<string | null>(null);
 
   const [userEmail, setUserEmail] = useState<string | null | undefined>(undefined);
+  const [profilePhone, setProfilePhone] = useState<string | null>(null);
+  const [phoneInput, setPhoneInput] = useState("");
+  const [guestName, setGuestName] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [homeService, setHomeService] = useState(false);
+  const [homeAddress, setHomeAddress] = useState("");
+  const [homeZoneId, setHomeZoneId] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -81,7 +98,16 @@ function BookingWizardInner({
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUserEmail(data.user?.email ?? null));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUserEmail(data.user?.email ?? null);
+      if (!data.user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("phone")
+        .eq("id", data.user.id)
+        .maybeSingle();
+      setProfilePhone(profile?.phone ?? null);
+    });
   }, []);
 
   function setParams(next: Record<string, string | null>) {
@@ -133,11 +159,32 @@ function BookingWizardInner({
       .finally(() => setLoadingSlots(false));
   }, [locationId, serviceId, variantId, preference, artistId, date, salon.id, salon.timezone]);
 
+  function homeServiceError(): string | null {
+    if (!homeService) return null;
+    if (!homeAddress.trim() || !homeZoneId) {
+      return "La dirección y la zona son obligatorias para el servicio a domicilio.";
+    }
+    return null;
+  }
+
   async function handleConfirm() {
     if (!locationId || !serviceId || !preference || !startsAt) return;
+    const needsPhone = !profilePhone && !phoneInput.trim();
+    if (needsPhone) {
+      setError("El celular es obligatorio.");
+      return;
+    }
+    const homeError = homeServiceError();
+    if (homeError) {
+      setError(homeError);
+      return;
+    }
     setConfirming(true);
     setError(null);
     try {
+      if (!profilePhone && phoneInput.trim()) {
+        await updateMyPhone(phoneInput.trim());
+      }
       await confirmBooking({
         salonId: salon.id,
         locationId,
@@ -146,6 +193,50 @@ function BookingWizardInner({
         artistPreference: preference,
         salonMembershipId: preference === "specific" ? artistId : null,
         startsAt,
+        isHomeService: homeService,
+        homeServiceAddress: homeService ? homeAddress.trim() : null,
+        homeServiceZoneId: homeService ? homeZoneId : null,
+        paymentMethod,
+        paymentDetail: paymentDetail || null,
+      });
+      setDone(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo confirmar la reserva.");
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function handleGuestConfirm() {
+    if (!locationId || !serviceId || !preference || !startsAt) return;
+    if (!guestName.trim() || !guestEmail.trim() || !guestPhone.trim()) {
+      setError("Nombre, correo y celular son obligatorios.");
+      return;
+    }
+    const homeError = homeServiceError();
+    if (homeError) {
+      setError(homeError);
+      return;
+    }
+    setConfirming(true);
+    setError(null);
+    try {
+      await bookAsGuest({
+        salonId: salon.id,
+        locationId,
+        serviceId,
+        variantId: variantId || null,
+        artistPreference: preference,
+        salonMembershipId: preference === "specific" ? artistId : null,
+        startsAt,
+        guestFullName: guestName.trim(),
+        guestEmail: guestEmail.trim(),
+        guestPhone: guestPhone.trim(),
+        isHomeService: homeService,
+        homeServiceAddress: homeService ? homeAddress.trim() : null,
+        homeServiceZoneId: homeService ? homeZoneId : null,
+        paymentMethod,
+        paymentDetail: paymentDetail || null,
       });
       setDone(true);
     } catch (e) {
@@ -163,11 +254,20 @@ function BookingWizardInner({
         </p>
         <h1 className="font-heading text-3xl text-foreground">¡Listo!</h1>
         <p className="max-w-md font-sans text-sm text-muted-foreground">
-          Te confirmaremos por correo a {userEmail}. Revisa el estado de tu cita en tu cuenta.
+          Te confirmaremos por correo a {userEmail ?? guestEmail}.
+          {userEmail
+            ? " Revisa el estado de tu cita en tu cuenta."
+            : " Revisa tu correo para ver los detalles de tu cita."}
         </p>
-        <Link href={`/salon/${salon.slug}/account`} className={buttonVariants({ className: "mt-2" })}>
-          Ir a mi cuenta
-        </Link>
+        {userEmail ? (
+          <Link href={`/salon/${salon.slug}/account`} className={buttonVariants({ className: "mt-2" })}>
+            Ir a mi cuenta
+          </Link>
+        ) : (
+          <Link href={`/salon/${salon.slug}`} className={buttonVariants({ className: "mt-2" })}>
+            Volver al inicio
+          </Link>
+        )}
       </div>
     );
   }
@@ -183,9 +283,12 @@ function BookingWizardInner({
           ? 4
           : !startsAt
             ? 5
-            : 6;
+            : !paymentMethod
+              ? 6
+              : 7;
 
   function goBack() {
+    if (paymentMethod) return setParams({ paymentMethod: null, paymentDetail: null });
     if (startsAt) return setParams({ startsAt: null });
     if (date) return setParams({ date: null });
     if (preference) return setParams({ preference: null, artistId: null });
@@ -208,6 +311,12 @@ function BookingWizardInner({
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-8">
+      <Link
+        href={`/salon/${salon.slug}`}
+        className="self-start font-heading text-sm tracking-wide text-foreground hover:text-gold"
+      >
+        {salon.name}
+      </Link>
       <div className="flex items-center justify-between gap-4">
         <button
           type="button"
@@ -380,8 +489,17 @@ function BookingWizardInner({
         </div>
       )}
 
-      {/* Step 6: summary + email confirmation + confirm */}
+      {/* Step 6: payment method (module only — nothing is actually charged) */}
       {step === 6 && (
+        <PaymentStep
+          method={paymentMethod}
+          detail={paymentDetail}
+          onChange={(method, detail) => setParams({ paymentMethod: method, paymentDetail: detail || null })}
+        />
+      )}
+
+      {/* Step 7: summary + home service + email confirmation + confirm */}
+      {step === 7 && (
         <div className="flex flex-col gap-6">
           <h1 className="font-heading text-2xl text-foreground">Confirmar</h1>
           <div className="rounded-md border border-border p-4 font-sans text-sm">
@@ -403,39 +521,114 @@ function BookingWizardInner({
             <p>
               <span className="text-muted-foreground">Cuándo:</span> {whenText} — COT (UTC-5)
             </p>
-          </div>
-
-          <div className="rounded-md border border-border p-4">
-            <p className="font-sans text-xs tracking-[0.2em] text-muted-foreground uppercase">
-              Confirmación por correo
+            <p>
+              <span className="text-muted-foreground">Pago:</span>{" "}
+              {paymentMethod === "pse" && "PSE"}
+              {paymentMethod === "transferencia" &&
+                `Transferencia — ${paymentDetail === "nequi" ? "Nequi" : "Llave Bre-B"}`}
+              {paymentMethod === "efectivo" &&
+                `Efectivo — ${
+                  paymentDetail === "pago_exacto"
+                    ? "pago exacto"
+                    : `cambio de $${paymentDetail.replace("cambio_", "")}`
+                }`}
             </p>
-            {userEmail ? (
-              <p className="mt-1 font-sans text-sm text-foreground">
-                Te enviaremos la confirmación, con el enlace para reagendar o cancelar, a{" "}
-                <span className="text-gold">{userEmail}</span>.
-              </p>
-            ) : (
-              <p className="mt-1 font-sans text-sm text-muted-foreground">
-                Inicia sesión para ver a qué correo se enviará tu confirmación.
-              </p>
-            )}
           </div>
 
-          {error && <p className="font-sans text-sm text-destructive">{error}</p>}
+          <HomeServiceSection
+            enabled={homeService}
+            address={homeAddress}
+            zoneId={homeZoneId}
+            zones={homeServiceZones}
+            onToggle={setHomeService}
+            onAddressChange={setHomeAddress}
+            onZoneChange={setHomeZoneId}
+          />
 
-          {userEmail === undefined ? null : userEmail === null ? (
-            <Link
-              href={`/auth/login?next=${encodeURIComponent(
-                `/salon/${salon.slug}/book?${searchParams.toString()}`
-              )}`}
-              className={buttonVariants()}
-            >
-              Inicia sesión para confirmar
-            </Link>
+          {userEmail === undefined ? null : userEmail ? (
+            <>
+              <div className="rounded-md border border-border p-4">
+                <p className="font-sans text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                  Confirmación por correo
+                </p>
+                <p className="mt-1 font-sans text-sm text-foreground">
+                  Te enviaremos la confirmación, con el enlace para reagendar o cancelar, a{" "}
+                  <span className="text-gold">{userEmail}</span>.
+                </p>
+                {!profilePhone && (
+                  <div className="mt-3 flex flex-col gap-1">
+                    <label className="font-sans text-xs text-muted-foreground">
+                      Celular (obligatorio)
+                    </label>
+                    <input
+                      value={phoneInput}
+                      onChange={(e) => setPhoneInput(e.target.value)}
+                      placeholder="+57 300 000 0000"
+                      className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {error && <p className="font-sans text-sm text-destructive">{error}</p>}
+
+              <Button onClick={handleConfirm} disabled={confirming} size="lg" className="w-fit px-8">
+                {confirming ? "Confirmando…" : "CONFIRMAR CITA"}
+              </Button>
+            </>
           ) : (
-            <Button onClick={handleConfirm} disabled={confirming} size="lg" className="w-fit px-8">
-              {confirming ? "Confirmando…" : "CONFIRMAR CITA"}
-            </Button>
+            <>
+              <div className="flex flex-col gap-3 rounded-md border border-border p-4">
+                <p className="font-sans text-xs tracking-[0.2em] text-muted-foreground uppercase">
+                  Tus datos
+                </p>
+                <div className="flex flex-col gap-1">
+                  <label className="font-sans text-xs text-muted-foreground">Nombre completo</label>
+                  <input
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-sans text-xs text-muted-foreground">Correo (obligatorio)</label>
+                  <input
+                    type="email"
+                    value={guestEmail}
+                    onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="font-sans text-xs text-muted-foreground">Celular (obligatorio)</label>
+                  <input
+                    value={guestPhone}
+                    onChange={(e) => setGuestPhone(e.target.value)}
+                    placeholder="+57 300 000 0000"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+                <p className="font-sans text-xs text-muted-foreground">
+                  Enviaremos la confirmación de tu cita a este correo.
+                </p>
+              </div>
+
+              {error && <p className="font-sans text-sm text-destructive">{error}</p>}
+
+              <div className="flex flex-wrap items-center gap-4">
+                <Button onClick={handleGuestConfirm} disabled={confirming} size="lg" className="w-fit px-8">
+                  {confirming ? "Confirmando…" : "RESERVAR COMO INVITADO"}
+                </Button>
+                <Link
+                  href={`/auth/login?next=${encodeURIComponent(
+                    `/salon/${salon.slug}/book?${searchParams.toString()}`
+                  )}`}
+                  className="font-sans text-sm text-muted-foreground hover:text-foreground"
+                >
+                  ¿Ya tienes cuenta? Inicia sesión
+                </Link>
+              </div>
+            </>
           )}
         </div>
       )}

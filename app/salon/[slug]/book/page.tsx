@@ -11,7 +11,7 @@ export default async function BookPage({
   if (!salon) notFound();
 
   const supabase = await createClient();
-  const [{ data: locations }, { data: services }, { data: variants }, { data: artists }] =
+  const [{ data: locations }, { data: services }, { data: variants }, { data: artists }, { data: homeServiceZones }] =
     await Promise.all([
       supabase
         .from("salon_locations")
@@ -37,6 +37,12 @@ export default async function BookPage({
         .eq("salon_id", salon.id)
         .eq("published", true)
         .order("sort_order"),
+      supabase
+        .from("home_service_zones")
+        .select("id, name, surcharge")
+        .eq("salon_id", salon.id)
+        .eq("active", true)
+        .order("sort_order"),
     ]);
 
   return (
@@ -46,6 +52,7 @@ export default async function BookPage({
       services={services ?? []}
       variants={variants ?? []}
       artists={artists ?? []}
+      homeServiceZones={homeServiceZones ?? []}
     />
   );
 }

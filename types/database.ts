@@ -162,6 +162,55 @@ export type Database = {
           },
         ]
       }
+      appointment_payment_selections: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          detail: string | null
+          id: string
+          method: string
+          salon_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          method: string
+          salon_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          method?: string
+          salon_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_payment_selections_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: true
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointment_payment_selections_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "appointment_payment_selections_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           amount_paid: number | null
@@ -170,7 +219,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -189,7 +242,11 @@ export type Database = {
           created_at?: string
           customer_id: string
           ends_at: string
+          home_service_address?: string | null
+          home_service_surcharge?: number | null
+          home_service_zone_id?: string | null
           id?: string
+          is_home_service?: boolean
           location_id: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -208,7 +265,11 @@ export type Database = {
           created_at?: string
           customer_id?: string
           ends_at?: string
+          home_service_address?: string | null
+          home_service_surcharge?: number | null
+          home_service_zone_id?: string | null
           id?: string
+          is_home_service?: boolean
           location_id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price?: number
@@ -226,6 +287,13 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_home_service_zone_id_fkey"
+            columns: ["home_service_zone_id"]
+            isOneToOne: false
+            referencedRelation: "home_service_zones"
             referencedColumns: ["id"]
           },
           {
@@ -502,6 +570,51 @@ export type Database = {
           },
           {
             foreignKeyName: "faqs_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      home_service_zones: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          name: string
+          salon_id: string
+          sort_order: number
+          surcharge: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name: string
+          salon_id: string
+          sort_order?: number
+          surcharge?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          name?: string
+          salon_id?: string
+          sort_order?: number
+          surcharge?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "home_service_zones_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "home_service_zones_salon_id_fkey"
             columns: ["salon_id"]
             isOneToOne: false
             referencedRelation: "salons"
@@ -1669,7 +1782,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1697,7 +1814,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1719,7 +1840,12 @@ export type Database = {
       book_appointment: {
         Args: {
           p_artist_preference: Database["public"]["Enums"]["artist_preference"]
+          p_home_service_address?: string
+          p_home_service_zone_id?: string
+          p_is_home_service?: boolean
           p_location_id: string
+          p_payment_detail?: string
+          p_payment_method?: string
           p_salon_id: string
           p_salon_membership_id: string
           p_service_id: string
@@ -1733,7 +1859,57 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
+          location_id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price: number
+          salon_id: string
+          salon_membership_id: string | null
+          service_id: string
+          service_variant_id: string | null
+          starts_at: string
+          status: Database["public"]["Enums"]["appointment_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "appointments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      book_appointment_as_guest: {
+        Args: {
+          p_artist_preference: Database["public"]["Enums"]["artist_preference"]
+          p_home_service_address?: string
+          p_home_service_zone_id?: string
+          p_is_home_service?: boolean
+          p_location_id: string
+          p_payment_detail?: string
+          p_payment_method?: string
+          p_profile_id: string
+          p_salon_id: string
+          p_salon_membership_id: string
+          p_service_id: string
+          p_service_variant_id: string
+          p_starts_at: string
+        }
+        Returns: {
+          amount_paid: number | null
+          artist_preference: Database["public"]["Enums"]["artist_preference"]
+          cancellation_reason: string | null
+          created_at: string
+          customer_id: string
+          ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
+          id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1761,7 +1937,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1789,7 +1969,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1818,7 +2002,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1875,7 +2063,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1929,7 +2121,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
@@ -1961,7 +2157,11 @@ export type Database = {
           created_at: string
           customer_id: string
           ends_at: string
+          home_service_address: string | null
+          home_service_surcharge: number | null
+          home_service_zone_id: string | null
           id: string
+          is_home_service: boolean
           location_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price: number
