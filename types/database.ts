@@ -1882,52 +1882,6 @@ export type Database = {
           isSetofReturn: false
         }
       }
-      book_appointment_as_guest: {
-        Args: {
-          p_artist_preference: Database["public"]["Enums"]["artist_preference"]
-          p_home_service_address?: string
-          p_home_service_zone_id?: string
-          p_is_home_service?: boolean
-          p_location_id: string
-          p_payment_detail?: string
-          p_payment_method?: string
-          p_profile_id: string
-          p_salon_id: string
-          p_salon_membership_id: string
-          p_service_id: string
-          p_service_variant_id: string
-          p_starts_at: string
-        }
-        Returns: {
-          amount_paid: number | null
-          artist_preference: Database["public"]["Enums"]["artist_preference"]
-          cancellation_reason: string | null
-          created_at: string
-          customer_id: string
-          ends_at: string
-          home_service_address: string | null
-          home_service_surcharge: number | null
-          home_service_zone_id: string | null
-          id: string
-          is_home_service: boolean
-          location_id: string
-          payment_status: Database["public"]["Enums"]["payment_status"]
-          price: number
-          salon_id: string
-          salon_membership_id: string | null
-          service_id: string
-          service_variant_id: string | null
-          starts_at: string
-          status: Database["public"]["Enums"]["appointment_status"]
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "appointments"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
       cancel_appointment: {
         Args: { p_appointment_id: string; p_reason?: string }
         Returns: {

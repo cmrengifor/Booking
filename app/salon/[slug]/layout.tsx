@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Toaster } from "sonner";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { SalonProvider } from "@/lib/tenant/salon-context";
 
@@ -11,5 +12,10 @@ export default async function SalonLayout({
 
   if (!salon) notFound();
 
-  return <SalonProvider salon={salon}>{children}</SalonProvider>;
+  return (
+    <SalonProvider salon={salon}>
+      {children}
+      <Toaster position="top-right" richColors />
+    </SalonProvider>
+  );
 }

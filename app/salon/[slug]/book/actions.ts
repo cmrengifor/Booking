@@ -1,7 +1,6 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import {
   computeAnyArtistSlots,
   computeArtistSlots,
@@ -147,76 +146,6 @@ export async function confirmBooking(
     // The DB function accepts NULL for both (any-artist bookings have no
     // variant or no named artist) — the generated RPC arg types just don't
     // reflect that nullability, so it's asserted here, not worked around.
-    p_service_variant_id: params.variantId as string,
-    p_artist_preference: params.artistPreference,
-    p_salon_membership_id: params.salonMembershipId as string,
-    p_starts_at: params.startsAt,
-    p_is_home_service: params.isHomeService,
-    p_home_service_address: params.homeServiceAddress as string,
-    p_home_service_zone_id: params.homeServiceZoneId as string,
-    p_payment_method: params.paymentMethod as string,
-    p_payment_detail: params.paymentDetail as string,
-  });
-  if (error) throw new Error(error.message);
-  return data;
-}
-
-/** Guest checkout: creates (or reuses, by email) a silent auth user server-
- *  side via the admin client, then books through a dedicated RPC that takes
- *  the profile_id as a plain parameter instead of reading auth.uid() — the
- *  guest's browser never gets a session, so it can't call book_appointment
- *  directly. Name/email/phone are mandatory since it's the only contact
- *  info the salon will have for this customer. */
-export async function bookAsGuest(
-  params: {
-    salonId: string;
-    locationId: string;
-    serviceId: string;
-    variantId: string | null;
-    artistPreference: "specific" | "any";
-    salonMembershipId: string | null;
-    startsAt: string;
-    guestFullName: string;
-    guestEmail: string;
-    guestPhone: string;
-  } & HomeServiceAndPayment
-) {
-  const fullName = params.guestFullName.trim();
-  const email = params.guestEmail.trim().toLowerCase();
-  const phone = params.guestPhone.trim();
-  if (!fullName || !email || !phone) {
-    throw new Error("Nombre, correo y celular son obligatorios.");
-  }
-
-  const admin = createAdminClient();
-
-  const { data: usersPage, error: listError } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  if (listError) throw new Error(listError.message);
-  let profileId = usersPage.users.find((u) => u.email?.toLowerCase() === email)?.id;
-
-  if (!profileId) {
-    const { data: created, error: createError } = await admin.auth.admin.createUser({
-      email,
-      email_confirm: true,
-      user_metadata: { full_name: fullName },
-    });
-    if (createError || !created.user) {
-      throw new Error(createError?.message ?? "No se pudo registrar el cliente.");
-    }
-    profileId = created.user.id;
-  }
-
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({ phone, full_name: fullName })
-    .eq("id", profileId);
-  if (profileError) throw new Error(profileError.message);
-
-  const { data, error } = await admin.rpc("book_appointment_as_guest", {
-    p_profile_id: profileId,
-    p_salon_id: params.salonId,
-    p_location_id: params.locationId,
-    p_service_id: params.serviceId,
     p_service_variant_id: params.variantId as string,
     p_artist_preference: params.artistPreference,
     p_salon_membership_id: params.salonMembershipId as string,
