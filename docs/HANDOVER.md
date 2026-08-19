@@ -1,8 +1,8 @@
 # Handover — Nail Salon Booking (Atelier Noir demo)
 
-Última actualización: 2026-08-18 (sesión que implementó el plan de la sección 8 —
-migración a componentes shadcn "base" — con desviaciones reales encontradas en vivo;
-ver sección 8 para el detalle de qué se mantuvo shadcn y qué se revirtió a hand-rolled).
+Última actualización: 2026-08-19 (auditoría y remediación de deuda técnica en 4 fases —
+ver sección 9 — sobre la sesión anterior que implementó la migración a shadcn "base",
+sección 8).
 
 ## 1. Qué es esto
 
@@ -210,11 +210,12 @@ Confirmar. Cambios sobre lo descrito en la versión anterior de este documento:
 
 - **Auditoría de responsividad móvil** — sigue pospuesta, nunca verificada en viewport
   móvil real.
-- **Resend (u otro proveedor de email)** — sigue pendiente. Bloquea: email real de
-  "Trabaja con nosotros", seguimiento/encuesta NPS, motivo de rechazo, recordatorios de
-  Clientes — todo eso ya está construido pero "stubbed" (loguea en vez de enviar, y la UI
-  muestra el link generado directamente para poder hacer demo sin bandeja real).
-  Decisión explícita del usuario: seguir sin Resend por ahora, no es bloqueante.
+- ~~Resend (u otro proveedor de email) — sigue pendiente~~ **Resuelto 2026-08-19**: Resend
+  está conectado (`RESEND_API_KEY`/`RESEND_FROM_EMAIL`, ver `.env.example` y
+  `lib/email/send-email.ts`), verificado con un envío real. `RESEND_FROM_EMAIL` sigue en
+  el sender de sandbox (`onboarding@resend.dev`) hasta que se verifique un dominio propio
+  en el dashboard de Resend — hasta entonces solo entrega a la cuenta de Resend, no a
+  clientes reales.
 - **Google Maps** — la sección de servicio a domicilio pide dirección con un textarea
   simple (sin autocompletado real) a propósito; el usuario dijo "crea el feat, luego
   agregamos el api" — falta la API key de Google Cloud cuando la tenga.
@@ -225,8 +226,8 @@ Confirmar. Cambios sobre lo descrito en la versión anterior de este documento:
   mucho más volumen de datos de demo (ver sección 3).
 - **`social_links` vacío** — sigue sin los handles reales.
 - **Admin UI para gestionar sedes** — sigue sin construirse.
-- **Ver sección 8** — hay un plan grande ya confirmado por el usuario (preguntas
-  respondidas, decisiones tomadas) que **todavía no se ha implementado ni una línea**.
+- **Ver sección 9** — auditoría de deuda técnica (2026-08-19), qué se resolvió y qué
+  sigue pendiente de decisión.
 
 ## 6. Mapa de archivos clave
 
@@ -445,3 +446,50 @@ tarjeta de servicio (con salto correcto de pasos), dropdown del admin nav, login
 de prueba insertados durante la verificación fueron limpiados de la base de datos al
 terminar. `npm run build`, `npx tsc --noEmit`, `npx eslint .` y `npm test` (13/13)— todos
 limpios.
+
+## 9. Auditoría de deuda técnica (2026-08-19) — 4 fases implementadas, no pusheadas
+
+Carlos pidió una auditoría de deuda técnica y luego "run all phases in order". Resumen —
+detalle completo en los mensajes de commit (`git log`, 4 commits, uno por fase):
+
+**Fase 0**: borrados `menubar.tsx`/`dropdown-menu.tsx`/`accordion.tsx`/`button-group.tsx`
+(shadcn, sin uso real desde la sesión anterior). Agregado `.env.example` documentando
+cada variable que el código realmente lee. El ítem original de "archivar HANDOVER.md"
+resultó ser un diagnóstico equivocado — esas secciones "SUPERSEDED" viven en la memoria
+de Claude para este proyecto, no en este archivo; no se tocó nada aquí.
+
+**Fase 1**: `.github/workflows/ci.yml` — typecheck/lint/test/build en cada push/PR a
+`main`, con credenciales de Supabase placeholder (el build nunca hace una llamada real
+en build time, cada ruta es dinámica). Nuevo script `npm run typecheck` (`next typegen &&
+tsc --noEmit` — `next typegen` es necesario en checkout limpio o faltan los tipos
+`PageProps`/`LayoutProps`).
+
+**Fase 2**: automatiza el playbook manual de RLS (sección 4) en
+`supabase/tests/rls-cross-tenant.sql` y agrega `supabase/tests/booking-rpcs.sql` (guardia
+del EXCLUDE constraint + cutoff de cancelación). Ambos verificados en vivo contra el
+proyecto real, con rollback — cero residuo. Corren con `npm run test:db`, **no están en
+CI** a propósito: necesitan acceso de escritura al proyecto real compartido, y wirearlos
+a cada push sin un proyecto de pruebas dedicado es una decisión que le toca a Carlos, no
+algo para decidir en silencio. `supabase/demo-data.sql` reconstruye el dataset masivo de
+demo (4 sedes, 12 estilistas, ~180 citas) que solo existía como inserts ad-hoc contra la
+base viva — idempotente, validado con un dry-run (`begin;...rollback;`) contra el schema
+real, pero **no ejecutado contra una base realmente vacía** (no hay un segundo proyecto
+Supabase disponible para probar ese camino de punta a punta).
+
+**Fase 3**: Resend conectado de verdad (`lib/email/send-email.ts`, verificado con un
+envío real). Rate limiting propio en Postgres (`check_rate_limit` RPC, sin cuenta nueva
+de terceros) aplicado a "Trabaja con nosotros" (3/hora/IP) y newsletter (5/hora/IP) —
+verificado en vivo por la UI real, incluyendo el bloqueo del 6to intento. La encuesta NPS
+(`encuesta/[token]`) se dejó sin rate limit — ya está protegida por un token de un solo
+uso que expira, protección más fuerte que un límite por IP. `app/error.tsx` y
+`app/global-error.tsx` — no existían, cualquier error sin capturar mostraba la pantalla
+cruda de Next.js. Monitoreo de errores real (Sentry o similar) **sigue bloqueado** — pide
+una cuenta de terceros que solo Carlos puede crear.
+
+**Todo commiteado localmente, nada pusheado** — 4 commits en `main`, esperando la orden
+explícita de push/deploy de siempre.
+
+**Cómo aplicar**: si se retoma esto, `npm run test:db` para correr las pruebas de RLS/RPC
+antes de tocar RLS o los RPCs de reserva. Si se conecta un dominio real en Resend,
+actualizar `RESEND_FROM_EMAIL` en Vercel (hoy usa el sender de sandbox). La decisión de
+si `test:db` entra a CI contra un proyecto Supabase de pruebas dedicado sigue abierta.
