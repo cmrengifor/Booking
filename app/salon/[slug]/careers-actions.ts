@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_RESUME_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set([
@@ -10,6 +11,10 @@ const ALLOWED_TYPES = new Set([
 ]);
 
 export async function applyForJob(salonId: string, formData: FormData) {
+  if (!(await checkRateLimit("careers", 3, 3600))) {
+    return { error: "Demasiadas aplicaciones — intenta de nuevo más tarde." };
+  }
+
   const fullName = String(formData.get("full_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();

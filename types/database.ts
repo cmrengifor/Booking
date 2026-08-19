@@ -978,6 +978,24 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limits: {
+        Row: {
+          bucket_key: string
+          count: number
+          created_at: string
+        }
+        Insert: {
+          bucket_key: string
+          count?: number
+          created_at?: string
+        }
+        Update: {
+          bucket_key?: string
+          count?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           appointment_id: string
@@ -1913,6 +1931,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      check_rate_limit: {
+        Args: {
+          p_key: string
+          p_max_requests: number
+          p_window_seconds: number
+        }
+        Returns: boolean
       }
       complete_appointment: {
         Args: { p_amount_paid: number; p_appointment_id: string }
