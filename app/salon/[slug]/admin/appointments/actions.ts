@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/send-email";
+import { getSalonMembership } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 async function callRpc(
   slug: string,
@@ -124,6 +126,17 @@ export async function triggerRescheduleFollowup(appointmentId: string, slug: str
     .single();
   if (!appt) throw new Error("Appointment not found.");
 
+  // This action mints a real token and sends a real email via the
+  // service-role client below — RLS lets the appointment's own customer
+  // read it too, so the read above alone isn't authorization. Must be a
+  // staff member of *this* appointment's salon before going any further.
+  if (!(await getSalonMembership(appt.salon_id))) {
+    throw new Error("No autorizado.");
+  }
+  if (!(await checkRateLimit(`admin-followup:${appt.salon_id}`, 20, 3600))) {
+    throw new Error("Demasiados envíos — intenta de nuevo más tarde.");
+  }
+
   const admin = createAdminClient();
   const { data: token, error: tokenError } = await admin
     .from("appointment_action_tokens")
@@ -173,6 +186,16 @@ export async function triggerNpsSurvey(appointmentId: string, slug: string) {
     .eq("id", appointmentId)
     .single();
   if (!appt) throw new Error("Appointment not found.");
+
+  // Same reasoning as triggerRescheduleFollowup above — the RLS-scoped read
+  // above is not authorization by itself, since the appointment's own
+  // customer can read it too.
+  if (!(await getSalonMembership(appt.salon_id))) {
+    throw new Error("No autorizado.");
+  }
+  if (!(await checkRateLimit(`admin-nps:${appt.salon_id}`, 20, 3600))) {
+    throw new Error("Demasiados envíos — intenta de nuevo más tarde.");
+  }
 
   const admin = createAdminClient();
   const { data: token, error: tokenError } = await admin

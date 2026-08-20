@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { Button } from "@/components/ui/button";
 import { TriggerActionButton } from "./trigger-action-button";
 import { DeclineForm } from "./decline-form";
@@ -27,19 +28,22 @@ export default async function AdminAppointmentsPage({
   const membership = await getSalonMembership(salon.id);
   const supabase = await createClient();
 
-  const [{ data: appointments }, { data: pastAppointments }, { data: stylists }] = await Promise.all([
+  const [appointmentsRes, pastAppointmentsRes, stylistsRes] = await Promise.all([
     supabase
       .from("appointments")
       .select(
         "id, status, starts_at, price, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
       )
+      .eq("salon_id", salon.id)
       .in("status", ["open", "pending", "confirmed"])
-      .order("starts_at"),
+      .order("starts_at")
+      .limit(200),
     supabase
       .from("appointments")
       .select(
         "id, status, starts_at, price, amount_paid, cancellation_reason, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
       )
+      .eq("salon_id", salon.id)
       .in("status", ["completed", "cancelled", "no_show"])
       .order("starts_at", { ascending: false })
       .limit(50),
@@ -50,6 +54,10 @@ export default async function AdminAppointmentsPage({
       .eq("role", "stylist")
       .eq("status", "active"),
   ]);
+  assertNoQueryErrors([appointmentsRes, pastAppointmentsRes, stylistsRes], "Failed to load appointments");
+  const { data: appointments } = appointmentsRes;
+  const { data: pastAppointments } = pastAppointmentsRes;
+  const { data: stylists } = stylistsRes;
 
   const open = (appointments ?? []).filter((a) => a.status === "open");
   const pending = (appointments ?? []).filter((a) => a.status === "pending");

@@ -5,6 +5,8 @@ import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/send-email";
+import { getSalonMembership } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 async function originFromRequest() {
   const h = await headers();
@@ -22,11 +24,21 @@ export async function sendUpcomingReminder(customerId: string, appointmentId: st
   const supabase = await createClient();
   const { data: appt } = await supabase
     .from("appointments")
-    .select("id, starts_at, services(name), customers(profile_id, profiles(full_name))")
+    .select("id, salon_id, starts_at, services(name), customers(profile_id, profiles(full_name))")
     .eq("id", appointmentId)
     .eq("customer_id", customerId)
     .single();
   if (!appt) return { error: "No se encontró la cita." };
+
+  // RLS lets the appointment's own customer read this row too, so the read
+  // above isn't authorization by itself — confirm staff membership before
+  // touching the service-role client below.
+  if (!(await getSalonMembership(appt.salon_id))) {
+    return { error: "No autorizado." };
+  }
+  if (!(await checkRateLimit(`admin-upcoming-reminder:${appt.salon_id}`, 20, 3600))) {
+    return { error: "Demasiados envíos — intenta de nuevo más tarde." };
+  }
 
   const admin = createAdminClient();
   const { data: authUser } = await admin.auth.admin.getUserById(appt.customers!.profile_id!);
@@ -57,10 +69,19 @@ export async function sendWinBackReminder(customerId: string, slug: string) {
   const supabase = await createClient();
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, profile_id, profiles(full_name)")
+    .select("id, salon_id, profile_id, profiles(full_name)")
     .eq("id", customerId)
     .single();
   if (!customer?.profile_id) return { error: "No se encontró el cliente." };
+
+  // RLS lets the customer read their own row too — confirm staff
+  // membership before touching the service-role client below.
+  if (!(await getSalonMembership(customer.salon_id))) {
+    return { error: "No autorizado." };
+  }
+  if (!(await checkRateLimit(`admin-winback-reminder:${customer.salon_id}`, 20, 3600))) {
+    return { error: "Demasiados envíos — intenta de nuevo más tarde." };
+  }
 
   const admin = createAdminClient();
   const { data: authUser } = await admin.auth.admin.getUserById(customer.profile_id);

@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { getRange, type RangeMode } from "./range";
 
 export type AnalyticsFilter = {
@@ -28,7 +29,7 @@ export async function loadAnalytics(
   if (filter.serviceId) query = query.eq("service_id", filter.serviceId);
   if (filter.artistId) query = query.eq("salon_membership_id", filter.artistId);
 
-  const [{ data: appointments }, { data: reviews }] = await Promise.all([
+  const [appointmentsRes, reviewsRes] = await Promise.all([
     query,
     supabase
       .from("reviews")
@@ -38,6 +39,9 @@ export async function loadAnalytics(
       .gte("created_at", start.toUTC().toISO()!)
       .lte("created_at", end.toUTC().toISO()!),
   ]);
+  assertNoQueryErrors([appointmentsRes, reviewsRes], "Failed to load analytics");
+  const { data: appointments } = appointmentsRes;
+  const { data: reviews } = reviewsRes;
 
   const rows = appointments ?? [];
   const completed = rows.filter((r) => r.status === "completed");

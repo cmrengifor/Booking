@@ -3,6 +3,7 @@ import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { StaffActions } from "./staff-actions";
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
@@ -46,28 +47,32 @@ export default async function AdminStaffPage({
   const locationFilter = typeof sp.location === "string" ? sp.location : null;
 
   const supabase = await createClient();
-  const [{ data: memberships }, { data: timeOffRows }, { data: analytics }, { data: locations }] =
-    await Promise.all([
-      supabase
-        .from("salon_memberships")
-        .select(
-          "id, role, status, location_id, profiles(full_name), artist_profiles(display_name, bio), staff_weekly_hours(day_of_week, start_time, end_time, break_start, break_end)"
-        )
-        .eq("salon_id", salon.id)
-        .order("role"),
-      supabase
-        .from("staff_time_off")
-        .select("id, salon_membership_id, start_date, end_date, reason")
-        .eq("salon_id", salon.id)
-        .order("start_date"),
-      supabase.from("artist_analytics").select("*").eq("salon_id", salon.id),
-      supabase
-        .from("salon_locations")
-        .select("id, name")
-        .eq("salon_id", salon.id)
-        .eq("active", true)
-        .order("sort_order"),
-    ]);
+  const [membershipsRes, timeOffRes, analyticsRes, locationsRes] = await Promise.all([
+    supabase
+      .from("salon_memberships")
+      .select(
+        "id, role, status, location_id, profiles(full_name), artist_profiles(display_name, bio), staff_weekly_hours(day_of_week, start_time, end_time, break_start, break_end)"
+      )
+      .eq("salon_id", salon.id)
+      .order("role"),
+    supabase
+      .from("staff_time_off")
+      .select("id, salon_membership_id, start_date, end_date, reason")
+      .eq("salon_id", salon.id)
+      .order("start_date"),
+    supabase.from("artist_analytics").select("*").eq("salon_id", salon.id),
+    supabase
+      .from("salon_locations")
+      .select("id, name")
+      .eq("salon_id", salon.id)
+      .eq("active", true)
+      .order("sort_order"),
+  ]);
+  assertNoQueryErrors([membershipsRes, timeOffRes, analyticsRes, locationsRes], "Failed to load staff");
+  const { data: memberships } = membershipsRes;
+  const { data: timeOffRows } = timeOffRes;
+  const { data: analytics } = analyticsRes;
+  const { data: locations } = locationsRes;
 
   const locationColor = new Map((locations ?? []).map((l, i) => [l.id, LOCATION_COLORS[i % LOCATION_COLORS.length]]));
   const locationName = new Map((locations ?? []).map((l) => [l.id, l.name]));

@@ -1,6 +1,7 @@
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { Button } from "@/components/ui/button";
 import { ActiveSwitch } from "./active-switch";
 import { DeleteButton } from "./delete-button";
@@ -29,29 +30,33 @@ export default async function AdminServicesPage({
   const canEdit = membership?.role === "owner" || membership?.role === "manager";
 
   const supabase = await createClient();
-  const [{ data: categories }, { data: services }, { data: variants }, { data: promotions }] =
-    await Promise.all([
-      supabase
-        .from("service_categories")
-        .select("*")
-        .eq("salon_id", salon.id)
-        .order("sort_order"),
-      supabase
-        .from("services")
-        .select("*")
-        .eq("salon_id", salon.id)
-        .order("sort_order"),
-      supabase
-        .from("service_variants")
-        .select("*")
-        .eq("salon_id", salon.id)
-        .order("sort_order"),
-      supabase
-        .from("service_promotions")
-        .select("*")
-        .eq("salon_id", salon.id)
-        .order("starts_at", { ascending: false }),
-    ]);
+  const [categoriesRes, servicesRes, variantsRes, promotionsRes] = await Promise.all([
+    supabase
+      .from("service_categories")
+      .select("*")
+      .eq("salon_id", salon.id)
+      .order("sort_order"),
+    supabase
+      .from("services")
+      .select("*")
+      .eq("salon_id", salon.id)
+      .order("sort_order"),
+    supabase
+      .from("service_variants")
+      .select("*")
+      .eq("salon_id", salon.id)
+      .order("sort_order"),
+    supabase
+      .from("service_promotions")
+      .select("*")
+      .eq("salon_id", salon.id)
+      .order("starts_at", { ascending: false }),
+  ]);
+  assertNoQueryErrors([categoriesRes, servicesRes, variantsRes, promotionsRes], "Failed to load services");
+  const { data: categories } = categoriesRes;
+  const { data: services } = servicesRes;
+  const { data: variants } = variantsRes;
+  const { data: promotions } = promotionsRes;
 
   const createCategoryAction = createCategory.bind(null, salon.id, slug);
   const createServiceAction = createService.bind(null, salon.id, slug);

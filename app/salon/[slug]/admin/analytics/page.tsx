@@ -2,6 +2,7 @@ import Link from "next/link";
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { loadAnalytics, parseFilter } from "./data";
 import { AnalyticsFilters } from "./filter-bar";
 
@@ -38,7 +39,7 @@ export default async function AdminAnalyticsPage({
   const todayIso = DateTime.now().setZone(salon.timezone).toISODate() ?? "";
 
   const supabase = await createClient();
-  const [{ data: services }, analytics] = await Promise.all([
+  const [servicesRes, analytics] = await Promise.all([
     supabase
       .from("services")
       .select("id, name")
@@ -47,6 +48,8 @@ export default async function AdminAnalyticsPage({
       .order("sort_order"),
     loadAnalytics(salon.id, salon.timezone, filter),
   ]);
+  assertNoQueryErrors([servicesRes], "Failed to load analytics filters");
+  const { data: services } = servicesRes;
 
   const qs = new URLSearchParams();
   qs.set("range", filter.mode);

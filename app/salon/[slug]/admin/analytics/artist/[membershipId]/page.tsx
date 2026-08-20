@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { loadAnalytics, parseFilter } from "../../data";
 
 export default async function ArtistInsightPage({
@@ -17,7 +18,7 @@ export default async function ArtistInsightPage({
   const filter = parseFilter(sp);
   const supabase = await createClient();
 
-  const [analytics, { data: name }, { data: reviews }] = await Promise.all([
+  const [analytics, nameRes, reviewsRes] = await Promise.all([
     loadAnalytics(salon.id, salon.timezone, { ...filter, artistId: membershipId }),
     supabase
       .from("artist_profiles")
@@ -33,6 +34,9 @@ export default async function ArtistInsightPage({
       .order("created_at", { ascending: false })
       .limit(10),
   ]);
+  assertNoQueryErrors([nameRes, reviewsRes], "Failed to load artist insight");
+  const { data: name } = nameRes;
+  const { data: reviews } = reviewsRes;
 
   if (!name) notFound();
 

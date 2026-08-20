@@ -2,6 +2,7 @@ import "server-only";
 import { DateTime } from "luxon";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 
 export type CustomerBucket = "this_week" | "upcoming" | "recent" | "inactive";
 
@@ -29,7 +30,11 @@ export type CustomerRecord = {
 export async function loadCustomers(salonId: string, timezone: string): Promise<CustomerRecord[]> {
   const supabase = await createClient();
 
-  const [{ data: customers }, { data: appointments }] = await Promise.all([
+  const now = DateTime.now().setZone(timezone);
+  const weekEnd = now.plus({ days: 7 });
+  const twelveMonthsAgo = now.minus({ months: 11 }).startOf("month");
+
+  const [customersRes, appointmentsRes] = await Promise.all([
     supabase
       .from("customers")
       .select("id, profile_id, profiles(full_name, phone)")
@@ -40,19 +45,46 @@ export async function loadCustomers(salonId: string, timezone: string): Promise<
         "id, customer_id, starts_at, status, services(name), salon_memberships(artist_profiles(display_name))"
       )
       .eq("salon_id", salonId)
+      // Bounded to the same 12-month window monthlyActivity already buckets
+      // into (was previously the entire history of the salon, unbounded,
+      // re-fetched and re-filtered per customer on every page load). A
+      // customer whose last visit predates this window still correctly
+      // lands in "inactive" (the bucket logic's own fallback for "no
+      // completed appointment found"), just without a precise
+      // daysSinceLast — an acceptable trade for a salon that's been
+      // dormant with them for over a year. Future appointments have no
+      // upper bound, since only a handful exist at any time.
+      .gte("starts_at", twelveMonthsAgo.toUTC().toISO()!)
       .order("starts_at", { ascending: false }),
   ]);
+  assertNoQueryErrors([customersRes, appointmentsRes], "Failed to load customers");
+  const { data: customers } = customersRes;
+  const { data: appointments } = appointmentsRes;
 
   const admin = createAdminClient();
-  const { data: usersPage } = await admin.auth.admin.listUsers({ perPage: 1000 });
-  const emailByProfileId = new Map(usersPage?.users.map((u) => [u.id, u.email ?? null]) ?? []);
+  // Scoped, per-customer lookups instead of a platform-wide listUsers(1000)
+  // page — this salon's customer count, not every auth user on the
+  // platform, and no silent cap once total platform users exceed 1000.
+  // Same pattern already used correctly for single lookups elsewhere in
+  // this directory (actions.ts).
+  const emailEntries = await Promise.all(
+    (customers ?? []).map(async (c) => {
+      if (!c.profile_id) return null;
+      const { data } = await admin.auth.admin.getUserById(c.profile_id);
+      return [c.profile_id, data.user?.email ?? null] as const;
+    })
+  );
+  const emailByProfileId = new Map(emailEntries.filter((e) => e !== null));
 
-  const now = DateTime.now().setZone(timezone);
-  const weekEnd = now.plus({ days: 7 });
-  const twelveMonthsAgo = now.minus({ months: 11 }).startOf("month");
+  const appointmentsByCustomer = new Map<string, NonNullable<typeof appointments>>();
+  for (const a of appointments ?? []) {
+    const list = appointmentsByCustomer.get(a.customer_id);
+    if (list) list.push(a);
+    else appointmentsByCustomer.set(a.customer_id, [a]);
+  }
 
   return (customers ?? []).map((c) => {
-    const apptsRaw = (appointments ?? []).filter((a) => a.customer_id === c.id);
+    const apptsRaw = appointmentsByCustomer.get(c.id) ?? [];
     const appts: CustomerAppointment[] = apptsRaw.map((a) => ({
       id: a.id,
       starts_at: a.starts_at,

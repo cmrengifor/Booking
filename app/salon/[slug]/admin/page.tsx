@@ -3,6 +3,7 @@ import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { createClient } from "@/lib/supabase/server";
+import { assertNoQueryErrors } from "@/lib/supabase/assert";
 
 export default async function AdminOverviewPage({
   params,
@@ -16,12 +17,7 @@ export default async function AdminOverviewPage({
   const todayStart = DateTime.now().setZone(salon.timezone).startOf("day").toISO();
   const todayEnd = DateTime.now().setZone(salon.timezone).endOf("day").toISO();
 
-  const [
-    { data: today },
-    { count: openCount },
-    { count: pendingConfirmationCount },
-    { count: pendingReviewsCount },
-  ] = await Promise.all([
+  const [todayRes, openRes, pendingConfirmationRes, pendingReviewsRes] = await Promise.all([
     supabase
       .from("appointments")
       .select(
@@ -53,6 +49,14 @@ export default async function AdminOverviewPage({
       .eq("salon_id", salon.id)
       .eq("status", "pending"),
   ]);
+  assertNoQueryErrors(
+    [todayRes, openRes, pendingConfirmationRes, pendingReviewsRes],
+    "Failed to load admin overview"
+  );
+  const { data: today } = todayRes;
+  const { count: openCount } = openRes;
+  const { count: pendingConfirmationCount } = pendingConfirmationRes;
+  const { count: pendingReviewsCount } = pendingReviewsRes;
 
   const quickLinks = [
     { href: "appointments", label: "Citas" },
