@@ -79,6 +79,10 @@ function BookingWizardInner({
   const startsAt = searchParams.get("startsAt");
   const paymentMethod = searchParams.get("paymentMethod") as PaymentMethod | null;
   const paymentDetail = searchParams.get("paymentDetail") ?? "";
+  // Carried along from the reagendar email link, if this booking started
+  // there — confirmBooking marks the token used only once this booking
+  // actually succeeds, not when the link was merely opened.
+  const rescheduleToken = searchParams.get("rescheduleToken");
 
   // Local-only: expanding a service-with-variants must never touch the URL
   // (it's still the same step) — only the final leaf choice (a service with
@@ -211,6 +215,7 @@ function BookingWizardInner({
         homeServiceZoneId: homeService ? homeZoneId : null,
         paymentMethod,
         paymentDetail: paymentDetail || null,
+        rescheduleToken,
       });
       toast.success("Reserva enviada", {
         description: "Te confirmaremos por correo en breve.",

@@ -1,6 +1,8 @@
 "use server";
 
+import { DateTime } from "luxon";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import {
   computeAnyArtistSlots,
   computeArtistSlots,
@@ -44,8 +46,15 @@ export async function getAvailableSlots(params: {
 
   const from = params.date;
   const to = params.date;
-  const fromInstant = `${params.date}T00:00:00Z`;
-  const toInstant = `${params.date}T23:59:59Z`;
+  // The busy-interval fetch window must be the salon's own local day, not a
+  // UTC calendar day — a fixed `${date}T00:00:00Z`..`T23:59:59Z` window
+  // silently excludes any appointment in the last hours before a late
+  // closing time for a negative-UTC-offset salon (e.g. evening slots in
+  // Bogota, UTC-5), since those instants fall on the *next* UTC day.
+  const zonedDate = DateTime.fromISO(params.date, { zone: params.timezone });
+  if (!zonedDate.isValid) throw new Error(`Invalid date/timezone: ${params.date} / ${params.timezone}`);
+  const fromInstant = zonedDate.startOf("day").toUTC().toISO()!;
+  const toInstant = zonedDate.plus({ days: 1 }).startOf("day").toUTC().toISO()!;
 
   async function fetchCandidate(membershipId: string) {
     const [{ data: artistHours }, { data: timeOff }, { data: busy }] =
@@ -136,6 +145,11 @@ export async function confirmBooking(
     artistPreference: "specific" | "any";
     salonMembershipId: string | null;
     startsAt: string;
+    // Set when this booking started from a reagendar email link — the
+    // one-time token is marked used here, only once the replacement
+    // appointment actually exists, instead of when the link was merely
+    // opened (see app/salon/[slug]/reagendar/[token]/page.tsx).
+    rescheduleToken?: string | null;
   } & HomeServiceAndPayment
 ) {
   const supabase = await createClient();
@@ -157,5 +171,21 @@ export async function confirmBooking(
     p_payment_detail: params.paymentDetail as string,
   });
   if (error) throw new Error(error.message);
+
+  if (params.rescheduleToken) {
+    // appointment_action_tokens has RLS enabled with no policies at all —
+    // only the service-role client can touch it. `.is("used_at", null)`
+    // makes this a no-op if the token was already consumed or never
+    // existed, so a stale/foreign token in the URL can't do anything
+    // beyond a harmless miss.
+    const admin = createAdminClient();
+    await admin
+      .from("appointment_action_tokens")
+      .update({ used_at: new Date().toISOString() })
+      .eq("id", params.rescheduleToken)
+      .eq("purpose", "reschedule_followup")
+      .is("used_at", null);
+  }
+
   return data;
 }

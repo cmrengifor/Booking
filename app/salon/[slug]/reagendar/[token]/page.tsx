@@ -29,11 +29,13 @@ export default async function ReagendarTokenPage({
       .single();
 
     if (appt) {
-      await admin
-        .from("appointment_action_tokens")
-        .update({ used_at: new Date().toISOString() })
-        .eq("id", tokenRow.id);
-
+      // used_at is intentionally NOT set here — this is a plain GET render,
+      // which link-prefetching mail gateways (Outlook Safe Links, corporate
+      // scanners) fetch automatically, and a customer who opens the link
+      // then abandons the booking wizard shouldn't permanently lose access
+      // to their own 24h window. The token is carried into the wizard and
+      // only marked used once confirmBooking actually creates the
+      // replacement appointment.
       const qs = new URLSearchParams();
       qs.set("serviceId", appt.service_id);
       if (appt.service_variant_id) qs.set("variantId", appt.service_variant_id);
@@ -42,6 +44,7 @@ export default async function ReagendarTokenPage({
         qs.set("preference", "specific");
         qs.set("artistId", appt.salon_membership_id);
       }
+      qs.set("rescheduleToken", tokenRow.id);
       redirect(`/salon/${slug}/book?${qs.toString()}`);
     }
   }
