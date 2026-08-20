@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export function ShareButton({ salon }: { salon: Salon }) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const firstItemRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -17,8 +19,22 @@ export function ShareButton({ salon }: { salon: Salon }) {
         setOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
+    }
     document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    // Standard menu-button pattern: move focus into the panel on open so
+    // keyboard/screen-reader users land somewhere meaningful instead of on
+    // a trigger that now says "expanded" with nothing else to Tab to.
+    firstItemRef.current?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [open]);
 
   async function handleClick() {
@@ -66,6 +82,7 @@ export function ShareButton({ salon }: { salon: Salon }) {
   return (
     <div ref={panelRef} className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={handleClick}
         aria-expanded={open}
@@ -76,6 +93,7 @@ export function ShareButton({ salon }: { salon: Salon }) {
         <span className="hidden sm:inline">Compartir</span>
       </button>
       <div
+        inert={!open}
         className={cn(
           "absolute top-full right-0 mt-3 w-48 rounded-md border border-border bg-background p-2 shadow-lg transition-[opacity,transform]",
           open
@@ -84,9 +102,10 @@ export function ShareButton({ salon }: { salon: Salon }) {
         )}
       >
         <ul className="flex flex-col">
-          {links.map((l) => (
+          {links.map((l, i) => (
             <li key={l.key}>
               <a
+                ref={i === 0 ? firstItemRef : undefined}
                 href={l.href}
                 target="_blank"
                 rel="noopener noreferrer"

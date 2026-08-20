@@ -21,6 +21,8 @@ export function SiteHeader({
   const socialLinks = getSocialLinks(salon);
   const [contactOpen, setContactOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const contactTriggerRef = useRef<HTMLButtonElement>(null);
+  const firstSocialLinkRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     if (!contactOpen) return;
@@ -29,8 +31,21 @@ export function SiteHeader({
         setContactOpen(false);
       }
     }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setContactOpen(false);
+        contactTriggerRef.current?.focus();
+      }
+    }
     document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
+    document.addEventListener("keydown", onKeyDown);
+    // Moves focus into the panel on open — a no-op when there are no social
+    // links and the panel holds only non-interactive phone/email text.
+    firstSocialLinkRef.current?.focus();
+    return () => {
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [contactOpen]);
 
   const hasContactInfo = socialLinks.length > 0 || salon.contact_phone || salon.contact_email;
@@ -89,6 +104,7 @@ export function SiteHeader({
         {hasContactInfo && (
           <div ref={panelRef} className="relative">
             <button
+              ref={contactTriggerRef}
               type="button"
               onClick={() => setContactOpen((v) => !v)}
               aria-expanded={contactOpen}
@@ -97,6 +113,7 @@ export function SiteHeader({
               Contáctanos
             </button>
             <div
+              inert={!contactOpen}
               className={cn(
                 "absolute top-full right-0 mt-3 w-56 rounded-md border border-border bg-background p-4 shadow-lg transition-[opacity,transform]",
                 contactOpen
@@ -106,9 +123,10 @@ export function SiteHeader({
             >
               {socialLinks.length > 0 && (
                 <ul className="flex flex-col gap-2">
-                  {socialLinks.map(([key, url]) => (
+                  {socialLinks.map(([key, url], i) => (
                     <li key={key}>
                       <a
+                        ref={i === 0 ? firstSocialLinkRef : undefined}
                         href={url}
                         target="_blank"
                         rel="noopener noreferrer"

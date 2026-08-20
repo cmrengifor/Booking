@@ -56,11 +56,11 @@ export function ImageCarousel({
         <>
           <CarouselPrevious
             aria-label="Anterior"
-            className="left-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/carousel:opacity-100"
+            className="left-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/carousel:opacity-100 focus-visible:opacity-100"
           />
           <CarouselNext
             aria-label="Siguiente"
-            className="right-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/carousel:opacity-100"
+            className="right-1 opacity-0 backdrop-blur-sm transition-opacity group-hover/carousel:opacity-100 focus-visible:opacity-100"
           />
         </>
       )}
