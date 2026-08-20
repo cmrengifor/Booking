@@ -37,7 +37,7 @@ export function ServicesSection({
             href={`/salon/${slug}/portfolio`}
             className="font-sans text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
           >
-            Ver Obras de Arte →
+            Ver Portafolio →
           </Link>
         </div>
         {categories.map((category) => (

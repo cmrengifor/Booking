@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const START_HOUR = 8;
-const END_HOUR = 20;
+const END_HOUR = 22;
 const STEP_MINUTES = 15;
 
 function buildDayTicks() {
@@ -39,7 +39,7 @@ export function TimePicker({
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="font-sans text-xs text-muted-foreground">8:00 am – 8:00 pm</p>
+      <p className="font-sans text-xs text-muted-foreground">8:00 am – 10:00 pm</p>
       <RadioGroup
         value={selectedLabel ?? undefined}
         onValueChange={(label) => {

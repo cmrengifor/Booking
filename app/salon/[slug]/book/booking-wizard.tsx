@@ -255,12 +255,22 @@ function BookingWizardInner({
               ? "pago"
               : "confirmar";
 
+  // Each branch clears whatever field gates the PREVIOUS step, not the
+  // current one — the current step's own gating field is already unset
+  // (that's precisely why we're on this step), so clearing it again is a
+  // no-op and the wizard silently fails to go back.
   function goBack() {
-    if (currentStep === "confirmar") return setParams({ paymentMethod: null, paymentDetail: null });
-    if (currentStep === "pago") return setPaymentStepDone(false);
-    if (currentStep === "hora") return setParams({ startsAt: null });
-    if (currentStep === "fecha") return setParams({ date: null });
-    if (currentStep === "artista") return setParams({ preference: null, artistId: null });
+    if (currentStep === "confirmar") {
+      setPaymentStepDone(false);
+      return setParams({ paymentMethod: null, paymentDetail: null });
+    }
+    if (currentStep === "pago") return setParams({ startsAt: null });
+    if (currentStep === "hora") return setParams({ date: null });
+    if (currentStep === "fecha") return setParams({ preference: null, artistId: null });
+    if (currentStep === "artista") {
+      setExpandedServiceId(serviceId);
+      return setParams({ serviceId: null, variantId: null });
+    }
     if (currentStep === "servicio") {
       if (needsVariant) return setParams({ serviceId: null, variantId: null });
       setExpandedServiceId(serviceId);

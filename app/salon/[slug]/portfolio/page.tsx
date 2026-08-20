@@ -62,7 +62,7 @@ export default async function PortfolioPage({
       <div className="px-6 py-16 sm:px-10 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h1 className="font-heading text-4xl italic text-foreground sm:text-5xl">
-            Obras de Arte
+            Portafolio
           </h1>
 
           <h2 className="mt-10 font-sans text-xs tracking-[0.2em] text-muted-foreground uppercase">

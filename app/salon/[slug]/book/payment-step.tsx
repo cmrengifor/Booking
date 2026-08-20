@@ -2,7 +2,7 @@
 
 type Method = "pse" | "transferencia" | "efectivo";
 
-const DENOMINATIONS = ["2.000", "5.000", "10.000", "20.000", "50.000", "100.000"];
+const DENOMINATIONS = ["50.000", "100.000"];
 
 export function PaymentStep({
   method,

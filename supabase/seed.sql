@@ -123,32 +123,33 @@ begin
   update artist_profiles set location_id = v_chapinero_id where salon_membership_id = v_sofia_membership_id;
   update artist_profiles set location_id = v_zonarosa_id where salon_membership_id = v_valentina_membership_id;
 
-  -- Chapinero open Tue–Sat 09:00–18:00; Zona Rosa Tue–Sat 10:00–19:00 —
-  -- deliberately different so the location filter is easy to verify.
+  -- Both locations open Monday–Sunday (all 7 days) 08:00–22:00, per the demo
+  -- availability window Carlos asked for.
   insert into salon_weekly_hours (salon_id, location_id, day_of_week, open_time, close_time)
-  select v_salon_id, v_chapinero_id, d, '09:00', '18:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d
-  on conflict (location_id, day_of_week) do nothing;
+  select v_salon_id, v_chapinero_id, d, '08:00', '22:00'
+  from unnest(array[0, 1, 2, 3, 4, 5, 6]) as d
+  on conflict (location_id, day_of_week) do update set
+    open_time = excluded.open_time, close_time = excluded.close_time;
 
   insert into salon_weekly_hours (salon_id, location_id, day_of_week, open_time, close_time)
-  select v_salon_id, v_zonarosa_id, d, '10:00', '19:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d
-  on conflict (location_id, day_of_week) do nothing;
+  select v_salon_id, v_zonarosa_id, d, '08:00', '22:00'
+  from unnest(array[0, 1, 2, 3, 4, 5, 6]) as d
+  on conflict (location_id, day_of_week) do update set
+    open_time = excluded.open_time, close_time = excluded.close_time;
 
   -- Both stylists work their location's full hours with a 13:00–14:00 break.
-  -- ON CONFLICT updates (not "do nothing") so a re-run converges Valentina's
-  -- hours onto Zona Rosa's window even though rows already existed from
-  -- before locations existed.
+  -- ON CONFLICT updates (not "do nothing") so a re-run converges existing
+  -- rows onto the current hours even if they were seeded earlier.
   insert into staff_weekly_hours (salon_membership_id, salon_id, day_of_week, start_time, end_time, break_start, break_end)
-  select v_sofia_membership_id, v_salon_id, d, '09:00', '18:00', '13:00', '14:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d
+  select v_sofia_membership_id, v_salon_id, d, '08:00', '22:00', '13:00', '14:00'
+  from unnest(array[0, 1, 2, 3, 4, 5, 6]) as d
   on conflict (salon_membership_id, day_of_week) do update set
     start_time = excluded.start_time, end_time = excluded.end_time,
     break_start = excluded.break_start, break_end = excluded.break_end;
 
   insert into staff_weekly_hours (salon_membership_id, salon_id, day_of_week, start_time, end_time, break_start, break_end)
-  select v_valentina_membership_id, v_salon_id, d, '10:00', '19:00', '13:00', '14:00'
-  from unnest(array[2, 3, 4, 5, 6]) as d
+  select v_valentina_membership_id, v_salon_id, d, '08:00', '22:00', '13:00', '14:00'
+  from unnest(array[0, 1, 2, 3, 4, 5, 6]) as d
   on conflict (salon_membership_id, day_of_week) do update set
     start_time = excluded.start_time, end_time = excluded.end_time,
     break_start = excluded.break_start, break_end = excluded.break_end;

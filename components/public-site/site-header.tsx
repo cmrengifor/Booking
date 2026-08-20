@@ -5,6 +5,8 @@ import Link from "next/link";
 import type { Salon } from "@/lib/tenant/resolve-salon";
 import { getSocialLinks, SOCIAL_LABELS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
+import { buttonVariants } from "@/components/ui/button";
+import { ShareButton } from "./share-button";
 
 export function SiteHeader({
   salon,
@@ -43,6 +45,12 @@ export function SiteHeader({
         {salon.name}
       </Link>
       <nav className="flex items-center gap-6 font-sans text-sm">
+        <Link
+          href={`/salon/${salon.slug}/book`}
+          className={buttonVariants({ size: "sm", className: "px-4" })}
+        >
+          Reservar una cita
+        </Link>
         {/* Route-prefixed so it works from any page, not just the landing
             itself — a bare "#servicios" href only rewrites the hash of
             whatever page you're already on. */}
@@ -56,7 +64,7 @@ export function SiteHeader({
           href={`/salon/${salon.slug}/portfolio`}
           className="hidden text-muted-foreground hover:text-foreground sm:inline"
         >
-          Obras de Arte
+          Portafolio
         </Link>
         <Link
           href={`/salon/${salon.slug}/account`}
@@ -77,6 +85,7 @@ export function SiteHeader({
             Plataforma
           </Link>
         )}
+        <ShareButton salon={salon} />
         {hasContactInfo && (
           <div ref={panelRef} className="relative">
             <button
