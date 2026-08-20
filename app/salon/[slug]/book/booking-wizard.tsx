@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateTime } from "luxon";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Home } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -313,6 +313,12 @@ function BookingWizardInner({
         >
           <ChevronLeft className="size-4" /> Volver
         </button>
+        <Link
+          href={`/salon/${salon.slug}`}
+          className="flex items-center gap-1 font-sans text-sm text-muted-foreground hover:text-foreground"
+        >
+          <Home className="size-4" /> Inicio
+        </Link>
       </div>
 
       <Questionnaire item={currentStep} onItemChange={handleItemChange}>

@@ -103,6 +103,9 @@ export default async function AccountPage({
           </h1>
         </div>
         <div className="flex items-center gap-4">
+          <Link href={`/salon/${slug}/book`} className={buttonVariants({ size: "sm" })}>
+            Reservar ahora
+          </Link>
           {membership && (
             <Link
               href={`/salon/${slug}/admin`}
