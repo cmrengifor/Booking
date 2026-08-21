@@ -8,9 +8,20 @@ import { cn } from "@/lib/utils";
 
 export function ShareButton({ salon }: { salon: Salon }) {
   const [open, setOpen] = useState(false);
+  // Starts empty, matching what the server renders (window doesn't exist
+  // there) — computing this from window.location during the initial
+  // render meant the client's first pass, which runs before hydration
+  // finishes, disagreed with the server's HTML for every link's href,
+  // producing a hydration mismatch on every page render.
+  const [origin, setOrigin] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reading window.location after mount to avoid an SSR/client hydration mismatch, not a render loop
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +63,7 @@ export function ShareButton({ salon }: { salon: Salon }) {
     setOpen((v) => !v);
   }
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/salon/${salon.slug}` : "";
+  const shareUrl = origin ? `${origin}/salon/${salon.slug}` : "";
   const shareText = `Mira ${salon.name}`;
 
   const links = [
