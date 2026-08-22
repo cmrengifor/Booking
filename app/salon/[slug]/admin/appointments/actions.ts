@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendEmail } from "@/lib/email/send-email";
 import { getSalonMembership } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { originFromRequest } from "@/lib/http";
 
 async function callRpc(
   slug: string,
@@ -102,15 +102,6 @@ export const complete = async (appointmentId: string, amountPaid: number, slug: 
 
 export const noShow = async (appointmentId: string, slug: string) =>
   callRpc(slug, "mark_no_show", { p_appointment_id: appointmentId });
-
-async function originFromRequest() {
-  const h = await headers();
-  const origin = h.get("origin");
-  if (origin) return origin;
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https";
-  return `${proto}://${host}`;
-}
 
 /** Cancelled appointment -> empathetic email with a 24h reschedule link.
  *  Reschedule goes through a fresh booking (prefilled), not reopening the

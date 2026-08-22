@@ -49,6 +49,9 @@ function LoginForm() {
       setError(error.message);
       return;
     }
+    // Best-effort: links any pending staff invite matching this email to
+    // the profile that just authenticated. Never block login on it.
+    await supabase.rpc("activate_pending_invites");
     window.location.href = next;
   }
 

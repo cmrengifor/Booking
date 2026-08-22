@@ -1855,6 +1855,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      activate_pending_invites: { Args: never; Returns: undefined }
+      assert_within_working_hours: {
+        Args: {
+          p_ends_at: string
+          p_location_id: string
+          p_salon_id: string
+          p_salon_membership_id: string
+          p_starts_at: string
+        }
+        Returns: undefined
+      }
       book_appointment: {
         Args: {
           p_artist_preference: Database["public"]["Enums"]["artist_preference"]
@@ -2183,6 +2194,29 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "reviews"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      update_staff_role: {
+        Args: {
+          p_membership_id: string
+          p_new_role: Database["public"]["Enums"]["salon_role"]
+        }
+        Returns: {
+          created_at: string
+          id: string
+          invited_email: string | null
+          location_id: string | null
+          profile_id: string | null
+          role: Database["public"]["Enums"]["salon_role"]
+          salon_id: string
+          status: Database["public"]["Enums"]["membership_status"]
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "salon_memberships"
           isOneToOne: true
           isSetofReturn: false
         }

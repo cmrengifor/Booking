@@ -3,6 +3,7 @@ import ExcelJS from "exceljs";
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
+import { canViewSalonFinancials } from "@/lib/auth/permissions";
 import { loadAnalytics, parseFilter } from "../data";
 import { RANGE_LABELS } from "../range";
 
@@ -16,6 +17,12 @@ export async function GET(request: Request, context: RouteContext<"/salon/[slug]
 
   const membership = await getSalonMembership(salon.id);
   if (!membership) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  // This workbook is always salon-wide (every artist's numbers) — never
+  // scoped to a single artist, so a stylist can't get it at all rather
+  // than get a misleadingly full export.
+  if (!canViewSalonFinancials(membership)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
   const { searchParams } = new URL(request.url);
   const filter = parseFilter({

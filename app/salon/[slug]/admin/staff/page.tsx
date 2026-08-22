@@ -2,9 +2,12 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
+import { canManageStaff, canManageOwnership } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { StaffActions } from "./staff-actions";
+import { InviteForm } from "./invite-form";
+import { CancelInviteButton } from "./cancel-invite-button";
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
@@ -43,18 +46,26 @@ export default async function AdminStaffPage({
   if (!salon) return null;
 
   const membership = await getSalonMembership(salon.id);
-  const canEdit = membership?.role === "owner" || membership?.role === "manager";
+  const canEdit = canManageStaff(membership);
+  const canOwn = canManageOwnership(membership);
   const locationFilter = typeof sp.location === "string" ? sp.location : null;
 
   const supabase = await createClient();
-  const [membershipsRes, timeOffRes, analyticsRes, locationsRes] = await Promise.all([
+  const [membershipsRes, pendingInvitesRes, timeOffRes, analyticsRes, locationsRes] = await Promise.all([
     supabase
       .from("salon_memberships")
       .select(
         "id, role, status, location_id, profiles(full_name), artist_profiles(display_name, bio), staff_weekly_hours(day_of_week, start_time, end_time, break_start, break_end)"
       )
       .eq("salon_id", salon.id)
+      .neq("status", "invited")
       .order("role"),
+    supabase
+      .from("salon_memberships")
+      .select("id, invited_email, role, location_id, created_at")
+      .eq("salon_id", salon.id)
+      .eq("status", "invited")
+      .order("created_at"),
     supabase
       .from("staff_time_off")
       .select("id, salon_membership_id, start_date, end_date, reason")
@@ -68,11 +79,17 @@ export default async function AdminStaffPage({
       .eq("active", true)
       .order("sort_order"),
   ]);
-  assertNoQueryErrors([membershipsRes, timeOffRes, analyticsRes, locationsRes], "Failed to load staff");
+  assertNoQueryErrors(
+    [membershipsRes, pendingInvitesRes, timeOffRes, analyticsRes, locationsRes],
+    "Failed to load staff"
+  );
   const { data: memberships } = membershipsRes;
+  const { data: pendingInvites } = pendingInvitesRes;
   const { data: timeOffRows } = timeOffRes;
   const { data: analytics } = analyticsRes;
   const { data: locations } = locationsRes;
+  const activeOwnerCount =
+    memberships?.filter((m) => m.role === "owner" && m.status === "active").length ?? 0;
 
   const locationColor = new Map((locations ?? []).map((l, i) => [l.id, LOCATION_COLORS[i % LOCATION_COLORS.length]]));
   const locationName = new Map((locations ?? []).map((l) => [l.id, l.name]));
@@ -129,11 +146,47 @@ export default async function AdminStaffPage({
         )}
       </div>
 
+      {canEdit && (
+        <InviteForm
+          salonId={salon.id}
+          salonName={salon.name}
+          slug={slug}
+          locations={locations ?? []}
+          canInviteOwner={canOwn}
+        />
+      )}
+
+      {canEdit && (pendingInvites?.length ?? 0) > 0 && (
+        <div className="rounded-md border border-border p-4">
+          <h2 className="font-heading text-lg text-foreground">Invitaciones pendientes</h2>
+          <ul className="mt-3 flex flex-col gap-2">
+            {pendingInvites!.map((inv) => (
+              <li
+                key={inv.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/40 px-3 py-2 font-sans text-xs"
+              >
+                <span className="text-foreground">
+                  {inv.invited_email}
+                  <span className="ml-2 text-muted-foreground">
+                    {ROLE_LABEL[inv.role] ?? inv.role}
+                    {inv.location_id && locationName.get(inv.location_id) &&
+                      ` · ${locationName.get(inv.location_id)}`}
+                  </span>
+                </span>
+                <CancelInviteButton membershipId={inv.id} slug={slug} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex flex-col gap-4">
         {visibleMemberships.map((m) => {
           const light = trafficLight(m.status, m.id);
           const stats = analytics?.find((a) => a.salon_membership_id === m.id);
           const memberTimeOff = timeOffRows?.filter((t) => t.salon_membership_id === m.id) ?? [];
+          const resolvedDisplayName =
+            m.artist_profiles?.display_name ?? m.profiles?.full_name ?? "Sin nombre";
 
           return (
             <div key={m.id} className="rounded-md border border-border p-4">
@@ -145,11 +198,7 @@ export default async function AdminStaffPage({
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="font-heading text-lg text-foreground">
-                        {m.artist_profiles?.display_name ??
-                          m.profiles?.full_name ??
-                          "Sin nombre"}
-                      </p>
+                      <p className="font-heading text-lg text-foreground">{resolvedDisplayName}</p>
                       <span
                         className={`rounded-full px-2 py-0.5 font-sans text-[11px] font-medium ${
                           ROLE_BADGE_CLASS[m.role] ?? "bg-muted text-muted-foreground"
@@ -176,16 +225,22 @@ export default async function AdminStaffPage({
                     )}
                   </div>
                 </div>
-                {canEdit && m.artist_profiles && (
+                {canEdit && (
                   <StaffActions
                     membershipId={m.id}
                     salonId={salon.id}
                     slug={slug}
-                    displayName={m.artist_profiles.display_name}
-                    bio={m.artist_profiles.bio ?? ""}
+                    displayName={resolvedDisplayName}
+                    bio={m.artist_profiles?.bio ?? ""}
+                    hasArtistProfile={!!m.artist_profiles}
                     hours={m.staff_weekly_hours ?? []}
                     timeOff={memberTimeOff}
                     disabled={m.status === "disabled"}
+                    role={m.role}
+                    locationId={m.location_id}
+                    locations={locations ?? []}
+                    canManageOwnership={canOwn}
+                    isLastOwner={m.role === "owner" && m.status === "active" && activeOwnerCount <= 1}
                   />
                 )}
               </div>

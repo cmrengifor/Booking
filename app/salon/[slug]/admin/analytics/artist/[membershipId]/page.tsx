@@ -1,10 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { getSalonMembership } from "@/lib/auth/session";
+import { canViewSalonFinancials } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { loadAnalytics, parseFilter } from "../../data";
+import { AnalyticsFilters } from "../../filter-bar";
 
 export default async function ArtistInsightPage({
   params,
@@ -15,10 +18,22 @@ export default async function ArtistInsightPage({
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
 
+  const membership = await getSalonMembership(salon.id);
   const filter = parseFilter(sp);
+
+  // A stylist only gets their own metrics — redirect rather than let them
+  // browse a colleague's individual numbers by editing the URL.
+  if (membership && !canViewSalonFinancials(membership) && membershipId !== membership.id) {
+    const ownQs = new URLSearchParams();
+    ownQs.set("range", filter.mode);
+    if (filter.refDate) ownQs.set("ref", filter.refDate);
+    if (filter.serviceId) ownQs.set("service", filter.serviceId);
+    redirect(`/salon/${slug}/admin/analytics/artist/${membership.id}?${ownQs.toString()}`);
+  }
+
   const supabase = await createClient();
 
-  const [analytics, nameRes, reviewsRes] = await Promise.all([
+  const [analytics, nameRes, reviewsRes, servicesRes] = await Promise.all([
     loadAnalytics(salon.id, salon.timezone, { ...filter, artistId: membershipId }),
     supabase
       .from("artist_profiles")
@@ -33,12 +48,21 @@ export default async function ArtistInsightPage({
       .eq("status", "published")
       .order("created_at", { ascending: false })
       .limit(10),
+    supabase
+      .from("services")
+      .select("id, name")
+      .eq("salon_id", salon.id)
+      .eq("active", true)
+      .order("sort_order"),
   ]);
-  assertNoQueryErrors([nameRes, reviewsRes], "Failed to load artist insight");
+  assertNoQueryErrors([nameRes, reviewsRes, servicesRes], "Failed to load artist insight");
   const { data: name } = nameRes;
   const { data: reviews } = reviewsRes;
+  const { data: services } = servicesRes;
 
   if (!name) notFound();
+
+  const todayIso = DateTime.now().setZone(salon.timezone).toISODate() ?? "";
 
   const qs = new URLSearchParams();
   qs.set("range", filter.mode);
@@ -62,6 +86,8 @@ export default async function ArtistInsightPage({
           ← Volver a Análisis
         </Link>
       </div>
+
+      <AnalyticsFilters services={services ?? []} todayIso={todayIso} showExport={false} />
 
       <div className="grid grid-cols-3 gap-4">
         <div className="rounded-md border border-border p-4">

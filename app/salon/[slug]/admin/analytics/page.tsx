@@ -1,6 +1,9 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { getSalonMembership } from "@/lib/auth/session";
+import { canViewSalonFinancials } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { loadAnalytics, parseFilter } from "./data";
@@ -35,7 +38,19 @@ export default async function AdminAnalyticsPage({
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
 
+  const membership = await getSalonMembership(salon.id);
   const filter = parseFilter(sp);
+
+  // A stylist gets a personal-metrics view instead of the salon-wide
+  // totals/rankings — reuse the existing per-artist page rather than
+  // duplicate its rendering here.
+  if (membership && !canViewSalonFinancials(membership)) {
+    const redirectQs = new URLSearchParams();
+    redirectQs.set("range", filter.mode);
+    if (filter.refDate) redirectQs.set("ref", filter.refDate);
+    if (filter.serviceId) redirectQs.set("service", filter.serviceId);
+    redirect(`/salon/${slug}/admin/analytics/artist/${membership.id}?${redirectQs.toString()}`);
+  }
   const todayIso = DateTime.now().setZone(salon.timezone).toISODate() ?? "";
 
   const supabase = await createClient();

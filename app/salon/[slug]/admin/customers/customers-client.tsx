@@ -28,10 +28,12 @@ export function CustomersClient({
   customers,
   slug,
   timezone,
+  canSeeContact,
 }: {
   customers: CustomerRecord[];
   slug: string;
   timezone: string;
+  canSeeContact: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [openBuckets, setOpenBuckets] = useState<Record<CustomerBucket, boolean>>({
@@ -98,6 +100,7 @@ export function CustomersClient({
                   bucket={bucket}
                   slug={slug}
                   timezone={timezone}
+                  canSeeContact={canSeeContact}
                   isExpanded={expanded.has(c.id)}
                   onToggle={() => toggleExpanded(c.id)}
                 />
@@ -118,6 +121,7 @@ function CustomerRow({
   bucket,
   slug,
   timezone,
+  canSeeContact,
   isExpanded,
   onToggle,
 }: {
@@ -125,6 +129,7 @@ function CustomerRow({
   bucket: CustomerBucket;
   slug: string;
   timezone: string;
+  canSeeContact: boolean;
   isExpanded: boolean;
   onToggle: () => void;
 }) {
@@ -153,12 +158,20 @@ function CustomerRow({
           {customer.fullName} {isExpanded ? "▾" : "▸"}
         </button>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {customer.phone ?? "Sin teléfono"}
-          </span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {customer.email ?? "Sin email"}
-          </span>
+          {canSeeContact ? (
+            <>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {customer.phone ?? "Sin teléfono"}
+              </span>
+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                {customer.email ?? "Sin email"}
+              </span>
+            </>
+          ) : (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              Contacto visible solo para owner/manager
+            </span>
+          )}
           {customer.distinctActiveMonths >= 2 && (
             <span className="rounded-full bg-gold/15 px-2 py-0.5 text-xs text-gold">Recurrente</span>
           )}

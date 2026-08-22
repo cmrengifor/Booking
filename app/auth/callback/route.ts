@@ -10,6 +10,9 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Best-effort: links any pending staff invite matching this email to
+      // the profile that just authenticated. Never block login on it.
+      await supabase.rpc("activate_pending_invites");
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

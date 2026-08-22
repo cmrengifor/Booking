@@ -2,11 +2,119 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { sendEmail } from "@/lib/email/send-email";
+import { originFromRequest } from "@/lib/http";
+import type { Enums } from "@/types/database";
 
 // Every mutation here runs through the caller's own RLS-scoped session —
 // staff_weekly_hours/staff_time_off/artist_profiles writes are restricted
 // to owner/manager at the RLS level (see migration 20260816005958,
-// decision H.10 — not self-service by the artist).
+// decision H.10 — not self-service by the artist). salon_memberships writes
+// additionally can't touch a row currently holding role='owner' unless the
+// caller is an owner themselves, and role itself can only change through
+// the update_staff_role RPC — see migration 20260828000000 for why.
+
+const INVITE_ROLE_LABEL: Record<string, string> = {
+  owner: "Dueño/a",
+  manager: "Manager",
+  receptionist: "Recepción",
+  stylist: "Artista",
+};
+
+export async function inviteStaffMember(
+  salonId: string,
+  salonName: string,
+  slug: string,
+  formData: FormData
+) {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const role = String(formData.get("role") ?? "") as Enums<"salon_role">;
+  const locationId = String(formData.get("location_id") ?? "") || null;
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Ingresa un correo válido." };
+  if (!["owner", "manager", "receptionist", "stylist"].includes(role)) {
+    return { error: "Rol inválido." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("salon_memberships").insert({
+    salon_id: salonId,
+    invited_email: email,
+    role,
+    location_id: locationId,
+    status: "invited",
+  });
+
+  if (error) {
+    if (error.code === "23505") {
+      return { error: "Ya existe una invitación pendiente para este correo en este salón." };
+    }
+    if (error.code === "42501") return { error: "Solo un owner puede invitar a otro owner." };
+    return { error: error.message };
+  }
+
+  const origin = await originFromRequest();
+  const next = encodeURIComponent(`/salon/${slug}/admin`);
+  await sendEmail({
+    to: email,
+    subject: `Te invitaron a unirte a ${salonName}`,
+    body: `Hola,
+
+Te invitaron a unirte al equipo de ${salonName} como ${INVITE_ROLE_LABEL[role] ?? role}.
+
+Para activar tu acceso, inicia sesión (o crea una cuenta si todavía no tienes una) usando este mismo correo: ${origin}/auth/login?next=${next}
+
+Si no esperabas esta invitación, puedes ignorar este mensaje.`,
+  });
+
+  revalidatePath(`/salon/${slug}/admin/staff`);
+  return { error: null };
+}
+
+export async function cancelStaffInvite(membershipId: string, slug: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("salon_memberships")
+    .delete()
+    .eq("id", membershipId)
+    .eq("status", "invited")
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Solo un owner puede cancelar una invitación de owner." };
+
+  revalidatePath(`/salon/${slug}/admin/staff`);
+  return { error: null };
+}
+
+export async function updateStaffRole(membershipId: string, role: string, slug: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_staff_role", {
+    p_membership_id: membershipId,
+    p_new_role: role as Enums<"salon_role">,
+  });
+  if (error) return { error: error.message };
+
+  revalidatePath(`/salon/${slug}/admin/staff`);
+  return { error: null };
+}
+
+export async function reassignStaffLocation(
+  membershipId: string,
+  locationId: string | null,
+  slug: string
+) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("salon_memberships")
+    .update({ location_id: locationId })
+    .eq("id", membershipId)
+    .select("id");
+  if (error) return { error: error.message };
+  if (!data?.length) return { error: "Solo un owner puede reasignar la sede de otro owner." };
+
+  revalidatePath(`/salon/${slug}/admin/staff`);
+  return { error: null };
+}
 
 export async function updateStaffProfile(
   membershipId: string,
@@ -114,29 +222,40 @@ export async function removeTimeOff(timeOffId: string, slug: string) {
  *  — which also happens to be the semaphore's "red" state. */
 export async function deleteStaffMember(membershipId: string, slug: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("salon_memberships").delete().eq("id", membershipId);
+  const { data, error } = await supabase
+    .from("salon_memberships")
+    .delete()
+    .eq("id", membershipId)
+    .select("id");
   if (error) {
     if (error.code === "23503") {
-      const { error: disableError } = await supabase
+      const { data: disableData, error: disableError } = await supabase
         .from("salon_memberships")
         .update({ status: "disabled" })
-        .eq("id", membershipId);
+        .eq("id", membershipId)
+        .select("id");
       if (disableError) return { error: disableError.message, archived: false };
+      if (!disableData?.length) {
+        return { error: "Solo un owner puede deshabilitar a otro owner.", archived: false };
+      }
       revalidatePath(`/salon/${slug}/admin/staff`);
       return { error: null, archived: true };
     }
     return { error: error.message, archived: false };
   }
+  if (!data?.length) return { error: "Solo un owner puede eliminar a otro owner.", archived: false };
   revalidatePath(`/salon/${slug}/admin/staff`);
   return { error: null, archived: false };
 }
 
 export async function reactivateStaffMember(membershipId: string, slug: string) {
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("salon_memberships")
     .update({ status: "active" })
-    .eq("id", membershipId);
+    .eq("id", membershipId)
+    .select("id");
   if (error) throw new Error(error.message);
+  if (!data?.length) throw new Error("Solo un owner puede reactivar a otro owner.");
   revalidatePath(`/salon/${slug}/admin/staff`);
 }

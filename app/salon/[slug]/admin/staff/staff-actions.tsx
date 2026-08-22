@@ -22,18 +22,30 @@ export function StaffActions({
   slug,
   displayName,
   bio,
+  hasArtistProfile,
   hours,
   timeOff,
   disabled,
+  role,
+  locationId,
+  locations,
+  canManageOwnership,
+  isLastOwner,
 }: {
   membershipId: string;
   salonId: string;
   slug: string;
   displayName: string;
   bio: string;
+  hasArtistProfile: boolean;
   hours: WeeklyHour[];
   timeOff: TimeOff[];
   disabled: boolean;
+  role: string;
+  locationId: string | null;
+  locations: { id: string; name: string }[];
+  canManageOwnership: boolean;
+  isLastOwner: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -70,8 +82,14 @@ export function StaffActions({
           slug={slug}
           displayName={displayName}
           bio={bio}
+          hasArtistProfile={hasArtistProfile}
           hours={hours}
           timeOff={timeOff}
+          role={role}
+          locationId={locationId}
+          locations={locations}
+          canManageOwnership={canManageOwnership}
+          isLastOwner={isLastOwner}
         />
       )}
     </div>

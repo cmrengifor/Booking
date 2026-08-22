@@ -1,5 +1,6 @@
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
+import { canManageCatalog } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { Button } from "@/components/ui/button";
@@ -27,7 +28,7 @@ export default async function AdminServicesPage({
   // Services are owner/manager-editable only at the RLS level — hide the
   // write UI for other roles instead of showing controls that error on
   // submit (found while auditing every role's admin experience).
-  const canEdit = membership?.role === "owner" || membership?.role === "manager";
+  const canEdit = canManageCatalog(membership);
 
   const supabase = await createClient();
   const [categoriesRes, servicesRes, variantsRes, promotionsRes] = await Promise.all([

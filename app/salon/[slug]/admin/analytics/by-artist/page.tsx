@@ -1,5 +1,8 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
+import { getSalonMembership } from "@/lib/auth/session";
+import { canViewSalonFinancials } from "@/lib/auth/permissions";
 import { loadAnalytics, parseFilter } from "../data";
 
 export default async function AnalyticsByArtistPage({
@@ -11,15 +14,25 @@ export default async function AnalyticsByArtistPage({
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
 
+  const membership = await getSalonMembership(salon.id);
   const byCompleted = sp.metric === "completed";
   const filter = parseFilter(sp);
-  const analytics = await loadAnalytics(salon.id, salon.timezone, filter);
 
   const qs = new URLSearchParams();
   qs.set("range", filter.mode);
   if (filter.refDate) qs.set("ref", filter.refDate);
   if (filter.serviceId) qs.set("service", filter.serviceId);
   const carry = qs.toString();
+
+  // This is a cross-artist ranking — a stylist doesn't get to see it, not
+  // even indirectly by landing here and being sent back through the main
+  // analytics page (which would itself redirect them right back to their
+  // own metrics anyway).
+  if (membership && !canViewSalonFinancials(membership)) {
+    redirect(`/salon/${slug}/admin/analytics/artist/${membership.id}?${carry}`);
+  }
+
+  const analytics = await loadAnalytics(salon.id, salon.timezone, filter);
 
   const rows = analytics.artists;
   const max = Math.max(1, ...rows.map((a) => (byCompleted ? a.count : a.revenue)));

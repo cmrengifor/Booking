@@ -8,9 +8,14 @@ const MODES: RangeMode[] = ["day", "week", "month", "quarter", "semester"];
 export function AnalyticsFilters({
   services,
   todayIso,
+  showExport = true,
 }: {
   services: { id: string; name: string }[];
   todayIso: string;
+  /** The export route always produces a salon-wide workbook — never show
+   *  this link on a scoped (single-artist) view, since it would silently
+   *  hand back more than the page itself displays. */
+  showExport?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -67,12 +72,14 @@ export function AnalyticsFilters({
           </option>
         ))}
       </select>
-      <a
-        href={`${pathname}/export?${exportParams.toString()}`}
-        className="ml-auto rounded-md border border-input px-3 py-1.5 font-sans text-xs text-foreground transition-colors hover:border-gold"
-      >
-        Descargar Excel
-      </a>
+      {showExport && (
+        <a
+          href={`${pathname}/export?${exportParams.toString()}`}
+          className="ml-auto rounded-md border border-input px-3 py-1.5 font-sans text-xs text-foreground transition-colors hover:border-gold"
+        >
+          Descargar Excel
+        </a>
+      )}
     </div>
   );
 }

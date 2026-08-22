@@ -1,5 +1,6 @@
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
+import { canModerateReviews } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/button";
 import { moderateReview } from "./actions";
@@ -14,7 +15,7 @@ export default async function AdminReviewsPage({
   const membership = await getSalonMembership(salon.id);
   // Moderation is owner/manager-only at the RLS level — hide the buttons
   // for other roles instead of showing controls that error on submit.
-  const canModerate = membership?.role === "owner" || membership?.role === "manager";
+  const canModerate = canModerateReviews(membership);
 
   const supabase = await createClient();
   const { data: reviews } = await supabase

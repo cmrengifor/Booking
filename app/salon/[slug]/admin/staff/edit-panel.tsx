@@ -2,9 +2,24 @@
 
 import { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { addTimeOff, removeTimeOff, updateStaffProfile, updateStaffSchedule } from "./actions";
+import {
+  addTimeOff,
+  removeTimeOff,
+  reassignStaffLocation,
+  updateStaffProfile,
+  updateStaffRole,
+  updateStaffSchedule,
+} from "./actions";
 
 const DAY_LABELS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+const ROLE_LABEL: Record<string, string> = {
+  owner: "Dueño/a",
+  manager: "Manager",
+  receptionist: "Recepción",
+  stylist: "Artista",
+};
+const NON_OWNER_ROLES = ["manager", "receptionist", "stylist"];
 
 type WeeklyHour = {
   day_of_week: number;
@@ -45,22 +60,39 @@ export function EditPanel({
   slug,
   displayName,
   bio,
+  hasArtistProfile,
   hours,
   timeOff,
+  role,
+  locationId,
+  locations,
+  canManageOwnership,
+  isLastOwner,
 }: {
   membershipId: string;
   salonId: string;
   slug: string;
   displayName: string;
   bio: string;
+  hasArtistProfile: boolean;
   hours: WeeklyHour[];
   timeOff: TimeOff[];
+  role: string;
+  locationId: string | null;
+  locations: { id: string; name: string }[];
+  canManageOwnership: boolean;
+  isLastOwner: boolean;
 }) {
   const [name, setName] = useState(displayName);
   const [bioText, setBioText] = useState(bio);
   const [days, setDays] = useState<DayState[]>(() => buildInitialDays(hours));
+  const [roleValue, setRoleValue] = useState(role);
+  const [locationValue, setLocationValue] = useState(locationId ?? "");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+
+  const canEditRole = canManageOwnership || role !== "owner";
+  const roleOptions = canManageOwnership ? ["owner", ...NON_OWNER_ROLES] : NON_OWNER_ROLES;
 
   function updateDay(index: number, patch: Partial<DayState>) {
     setDays((prev) => prev.map((d, i) => (i === index ? { ...d, ...patch } : d)));
@@ -69,15 +101,17 @@ export function EditPanel({
   function handleSave() {
     setMessage(null);
     startTransition(async () => {
-      const profileResult = await updateStaffProfile(membershipId, slug, (() => {
-        const fd = new FormData();
-        fd.set("display_name", name);
-        fd.set("bio", bioText);
-        return fd;
-      })());
-      if (profileResult.error) {
-        setMessage(profileResult.error);
-        return;
+      if (hasArtistProfile) {
+        const profileResult = await updateStaffProfile(membershipId, slug, (() => {
+          const fd = new FormData();
+          fd.set("display_name", name);
+          fd.set("bio", bioText);
+          return fd;
+        })());
+        if (profileResult.error) {
+          setMessage(profileResult.error);
+          return;
+        }
       }
       const scheduleResult = await updateStaffSchedule(
         membershipId,
@@ -95,6 +129,24 @@ export function EditPanel({
       if (scheduleResult.error) {
         setMessage(scheduleResult.error);
         return;
+      }
+      if (canEditRole && roleValue !== role) {
+        const roleResult = await updateStaffRole(membershipId, roleValue, slug);
+        if (roleResult.error) {
+          setMessage(roleResult.error);
+          return;
+        }
+      }
+      if (locationValue !== (locationId ?? "")) {
+        const locationResult = await reassignStaffLocation(
+          membershipId,
+          locationValue || null,
+          slug
+        );
+        if (locationResult.error) {
+          setMessage(locationResult.error);
+          return;
+        }
       }
       setMessage("Guardado.");
     });
@@ -114,20 +166,71 @@ export function EditPanel({
 
   return (
     <div className="mt-3 flex flex-col gap-4 rounded-md border border-dashed border-border/70 p-3">
-      <div className="flex flex-col gap-2">
-        <label className="font-sans text-xs font-medium text-foreground">Nombre visible</label>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        <label className="font-sans text-xs font-medium text-foreground">Bio</label>
-        <textarea
-          value={bioText}
-          onChange={(e) => setBioText(e.target.value)}
-          rows={2}
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
+      {hasArtistProfile ? (
+        <div className="flex flex-col gap-2">
+          <label className="font-sans text-xs font-medium text-foreground">Nombre visible</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <label className="font-sans text-xs font-medium text-foreground">Bio</label>
+          <textarea
+            value={bioText}
+            onChange={(e) => setBioText(e.target.value)}
+            rows={2}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+      ) : (
+        <p className="font-sans text-xs text-muted-foreground">
+          Este miembro no tiene un perfil de artista (nombre/bio) — solo se pueden editar rol, sede y horario.
+        </p>
+      )}
+
+      <div className="flex flex-wrap gap-4">
+        <div className="flex flex-col gap-1">
+          <label className="font-sans text-xs font-medium text-foreground">Rol</label>
+          {canEditRole ? (
+            <select
+              value={roleValue}
+              onChange={(e) => setRoleValue(e.target.value)}
+              disabled={isLastOwner}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+            >
+              {roleOptions.map((r) => (
+                <option key={r} value={r}>
+                  {ROLE_LABEL[r] ?? r}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="font-sans text-xs text-muted-foreground">
+              Solo un owner puede cambiar el rol de otro owner.
+            </p>
+          )}
+          {isLastOwner && (
+            <p className="font-sans text-[11px] text-muted-foreground">
+              Es el único owner activo — el salón necesita al menos uno.
+            </p>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label className="font-sans text-xs font-medium text-foreground">Sede</label>
+          <select
+            value={locationValue}
+            onChange={(e) => setLocationValue(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">Sin sede asignada</option>
+            {locations.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div>

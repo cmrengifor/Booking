@@ -1,6 +1,7 @@
 import { DateTime } from "luxon";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
+import { canViewAllAppointments } from "@/lib/auth/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { assertNoQueryErrors } from "@/lib/supabase/assert";
 import { Button } from "@/components/ui/button";
@@ -28,25 +29,38 @@ export default async function AdminAppointmentsPage({
   const membership = await getSalonMembership(salon.id);
   const supabase = await createClient();
 
+  // A stylist only sees their own assigned appointments — plus the
+  // unassigned "open" pool, so self-claiming still works — and never sees
+  // which customer they belong to (enforced below by simply never
+  // rendering it, not by omitting it from the query — a Server Component's
+  // fetched data never reaches the browser unless it's actually rendered).
+  const restrictToOwn = !canViewAllAppointments(membership);
+
+  let activeQuery = supabase
+    .from("appointments")
+    .select(
+      "id, status, starts_at, price, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
+    )
+    .eq("salon_id", salon.id)
+    .in("status", ["open", "pending", "confirmed"]);
+  if (restrictToOwn && membership) {
+    activeQuery = activeQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
+  }
+
+  let pastQuery = supabase
+    .from("appointments")
+    .select(
+      "id, status, starts_at, price, amount_paid, cancellation_reason, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
+    )
+    .eq("salon_id", salon.id)
+    .in("status", ["completed", "cancelled", "no_show"]);
+  if (restrictToOwn && membership) {
+    pastQuery = pastQuery.eq("salon_membership_id", membership.id);
+  }
+
   const [appointmentsRes, pastAppointmentsRes, stylistsRes] = await Promise.all([
-    supabase
-      .from("appointments")
-      .select(
-        "id, status, starts_at, price, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
-      )
-      .eq("salon_id", salon.id)
-      .in("status", ["open", "pending", "confirmed"])
-      .order("starts_at")
-      .limit(200),
-    supabase
-      .from("appointments")
-      .select(
-        "id, status, starts_at, price, amount_paid, cancellation_reason, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name), salon_memberships(artist_profiles(display_name))"
-      )
-      .eq("salon_id", salon.id)
-      .in("status", ["completed", "cancelled", "no_show"])
-      .order("starts_at", { ascending: false })
-      .limit(50),
+    activeQuery.order("starts_at").limit(200),
+    pastQuery.order("starts_at", { ascending: false }).limit(50),
     supabase
       .from("salon_memberships")
       .select("id, artist_profiles(display_name)")
@@ -66,6 +80,11 @@ export default async function AdminAppointmentsPage({
   const cancelledList = (pastAppointments ?? []).filter((a) => a.status === "cancelled");
   const noShowList = (pastAppointments ?? []).filter((a) => a.status === "no_show");
   const isStylist = membership?.role === "stylist";
+  // Distinct from restrictToOwn/isStylist on purpose — this is "should the
+  // customer's identity render at all," which today happens to be the same
+  // population as the row-restriction above, but is a separate concern
+  // (see lib/auth/permissions.ts) that could diverge from it later.
+  const showCustomerName = canViewAllAppointments(membership);
 
   function fmt(a: { starts_at: string }) {
     return DateTime.fromISO(a.starts_at).setZone(salon!.timezone).setLocale("es").toFormat("d LLL, HH:mm");
@@ -87,7 +106,9 @@ export default async function AdminAppointmentsPage({
               {a.services?.name}
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
-            <p className="text-muted-foreground">{a.customers?.profiles?.full_name}</p>
+            {showCustomerName && (
+              <p className="text-muted-foreground">{a.customers?.profiles?.full_name}</p>
+            )}
             {isStylist ? (
               <form action={takeOpenAppointment.bind(null, a.id, null, slug)} className="mt-2">
                 <Button size="sm" type="submit">Tomar</Button>
@@ -128,7 +149,7 @@ export default async function AdminAppointmentsPage({
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
             <p className="text-muted-foreground">
-              {a.customers?.profiles?.full_name} ·{" "}
+              {showCustomerName && <>{a.customers?.profiles?.full_name} ·{" "}</>}
               {a.salon_memberships?.artist_profiles?.display_name}
             </p>
             {/* accept_pending_appointment/decline_pending_appointment only
@@ -156,7 +177,7 @@ export default async function AdminAppointmentsPage({
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
             <p className="text-muted-foreground">
-              {a.customers?.profiles?.full_name} ·{" "}
+              {showCustomerName && <>{a.customers?.profiles?.full_name} ·{" "}</>}
               {a.salon_memberships?.artist_profiles?.display_name} · ${a.price}
             </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -209,7 +230,7 @@ export default async function AdminAppointmentsPage({
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
             <p className="text-muted-foreground">
-              {a.customers?.profiles?.full_name} ·{" "}
+              {showCustomerName && <>{a.customers?.profiles?.full_name} ·{" "}</>}
               {a.salon_memberships?.artist_profiles?.display_name} · ${a.amount_paid ?? a.price}
             </p>
             <div className="mt-2">
@@ -234,7 +255,7 @@ export default async function AdminAppointmentsPage({
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
             <p className="text-muted-foreground">
-              {a.customers?.profiles?.full_name}
+              {showCustomerName && a.customers?.profiles?.full_name}
               {a.cancellation_reason && ` · ${a.cancellation_reason}`}
             </p>
             <div className="mt-2">
@@ -259,7 +280,7 @@ export default async function AdminAppointmentsPage({
               {a.service_variants?.name && ` — ${a.service_variants.name}`} · {fmt(a)}
             </p>
             <p className="text-muted-foreground">
-              {a.customers?.profiles?.full_name} ·{" "}
+              {showCustomerName && <>{a.customers?.profiles?.full_name} ·{" "}</>}
               {a.salon_memberships?.artist_profiles?.display_name}
             </p>
           </li>
