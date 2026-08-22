@@ -8,9 +8,19 @@ import { cn } from "@/lib/utils";
 
 export function ShareButton({ salon }: { salon: Salon }) {
   const [open, setOpen] = useState(false);
+  // window.location.origin is unavailable during SSR. Reading it directly in
+  // render made the server output (empty string) diverge from the client's
+  // first hydration pass (real origin, since `window` already exists by
+  // then) — a hydration mismatch. Deferring to an effect keeps SSR and the
+  // initial client render identical; the real links appear a tick later.
+  const [origin, setOrigin] = useState("");
   const panelRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -52,7 +62,7 @@ export function ShareButton({ salon }: { salon: Salon }) {
     setOpen((v) => !v);
   }
 
-  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/salon/${salon.slug}` : "";
+  const shareUrl = origin ? `${origin}/salon/${salon.slug}` : "";
   const shareText = `Mira ${salon.name}`;
 
   const links = [
