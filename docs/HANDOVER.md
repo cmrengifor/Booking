@@ -1,8 +1,8 @@
 # Handover — Nail Salon Booking (Atelier Noir demo)
 
-Última actualización: 2026-08-19 (auditoría y remediación de deuda técnica en 4 fases —
-ver sección 9 — sobre la sesión anterior que implementó la migración a shadcn "base",
-sección 8).
+Última actualización: 2026-08-22 (jerarquía de roles y permisos de staff en 5 fases,
+pusheadas — ver sección 10 — sobre la auditoría de deuda técnica de la sesión anterior,
+sección 9).
 
 ## 1. Qué es esto
 
@@ -246,14 +246,21 @@ app/salon/[slug]/
   admin/
     admin-nav.tsx                 nav con sección activa resaltada + toast Realtime + link "Ver sitio"
     appointments/                 page.tsx + collapsible-section.tsx + decline-form.tsx + trigger-action-button.tsx
-    customers/                    page.tsx + data.ts (cálculo de buckets) + customers-client.tsx + actions.ts
+    customers/                    page.tsx + data.ts (fetch, delega a build-records.ts) + build-records.ts
+                                   (función pura: redacción/restricción/buckets, testeada) + customers-client.tsx + actions.ts
     services/                     page.tsx + active-switch.tsx + delete-button.tsx + split-input.tsx + promotions-section.tsx
-    staff/                        page.tsx + staff-actions.tsx + edit-panel.tsx
+    staff/                        page.tsx + staff-actions.tsx + edit-panel.tsx + actions.ts
+                                   (invite/role-change/location) + invite-form.tsx + cancel-invite-button.tsx
     analytics/                    page.tsx + data.ts (loadAnalytics compartido) + filter-bar.tsx + by-artist/ + artist/[id]/ + export/route.ts (exceljs)
   portfolio/page.tsx              "Obras de Arte", filtro por artista
   privacidad/page.tsx             aviso de manejo de datos
   careers-actions.ts              aplicar a vacante (Storage + tabla, sin email real)
   encuesta/[token]/, reagendar/[token]/   páginas públicas con token, sin login (patrón admin client)
+
+platform-admin/
+  layout.tsx                      gate is_platform_admin() + nav (Salones / Administradores)
+  salons/                         page.tsx + actions.ts (crear/suspender) + create-salon-form.tsx + status-toggle.tsx
+  admins/                         page.tsx + actions.ts (otorgar/revocar) + grant-admin-form.tsx + revoke-admin-button.tsx
 
 components/public-site/
   site-header.tsx                 nav + dropdown Contáctanos + link "Plataforma" (solo platform admins)
@@ -265,11 +272,14 @@ lib/
   domain/availability.ts          motor de disponibilidad puro (testeado, sin cambios de lógica)
   social-links.ts                 helper compartido header/footer para social_links
   auth/session.ts                 helpers de sesión, envueltos en cache()
-  email/send-email.ts             stub — loguea en vez de enviar (sin Resend)
+  auth/permissions.ts             checks de rol centralizados (testeado, ver sección 10)
+  http.ts                         originFromRequest() compartido (extraído de appointments/actions.ts)
+  email/send-email.ts             Resend real (ver sección 9, Fase 3) — ya no es un stub
   supabase/{client,server,admin}.ts
 
 supabase/
-  migrations/*.sql                 último: 20260823000000_home_service_and_payment.sql
+  migrations/*.sql                 último: 20260828020000_platform_admin_min_one.sql
+  tests/staff-role-safeguards.sql  regresión de las 3 migraciones de rol/staff/platform-admin (sección 10)
   seed.sql                         SOLO el set mínimo original (2 sedes, Sofia/Valentina) —
                                     los datos de demo masivos NO están acá, se insertaron
                                     directo en la BD en vivo (ver sección 3)
@@ -493,3 +503,91 @@ explícita de push/deploy de siempre.
 antes de tocar RLS o los RPCs de reserva. Si se conecta un dominio real en Resend,
 actualizar `RESEND_FROM_EMAIL` en Vercel (hoy usa el sender de sandbox). La decisión de
 si `test:db` entra a CI contra un proyecto Supabase de pruebas dedicado sigue abierta.
+
+## 10. Jerarquía de roles y permisos de staff (2026-08-22) — 5 fases implementadas, pusheadas
+
+Carlos pidió limitar qué ve y qué puede hacer cada rol de staff, y luego "corre fase X"
+fase por fase sobre un plan de 5 fases que propuse yo (senior dev), confirmado sin
+objeciones. Todo en `main`, en 2 commits: uno agrupa Fases 1/2/3/5 (comparten
+`lib/auth/permissions.ts` y `staff/actions.ts`, no se pudieron separar limpio sin
+staging por hunks), el otro es Fase 4 (platform-admin), completamente independiente del
+resto — cero archivos en común.
+
+**Fase 1 — helpers centralizados**: `lib/auth/permissions.ts` nuevo. Un `hasRole()`
+interno + funciones nombradas por concepto de negocio (`canManageCatalog`,
+`canModerateReviews`, `canManageStaff`, ...) aunque varias colapsen al mismo set de
+roles hoy — deliberado, para no acoplar conceptos que podrían divergir después (ej. dejar
+que managers moderen reseñas pero no toquen precios). Reemplaza los checks
+`membership?.role === "owner" || membership?.role === "manager"` inline que ya existían
+en services/staff/reviews.
+
+**Fase 2 — visibilidad restringida por rol**:
+- `admin/customers`: un stylist solo ve clientes con cita propia — filtro real en la
+  query (`salon_membership_id`), no solo ocultar en la UI. Teléfono/email se quitan a
+  nivel de datos (ni siquiera se llama a `admin.auth.admin.getUserById`) para cualquiera
+  que no sea owner/manager, incluido receptionist.
+- `admin/appointments`: un stylist ve el pool de citas abiertas (para poder tomarlas) más
+  solo las suyas propias, y nunca el nombre del cliente en ningún estado.
+- `admin/analytics`: un stylist es redirigido a su propia vista de artista
+  (`/analytics/artist/[su-id]`) en las 3 rutas de analytics, incluso si intenta ver la de
+  otro artista por URL directa; el export a Excel devuelve 403. Receptionist mantiene
+  acceso completo a analytics (coincide con "ve todo, no toca datos personales").
+
+**Fase 3 — gestión de staff (invitar / cambiar rol / reasignar sede)**: antes de
+construir esto encontré un bug de seguridad real y lo cerré primero: con las políticas
+RLS de la Fase 1, cualquier manager podía auto-ascenderse a owner o eliminar al owner
+real (la política solo miraba "quién es el caller", nunca "de quién es la fila que se
+está tocando"). Cerrado con:
+- La política de escritura de `salon_memberships` ahora exige ser owner para tocar
+  (update **o** delete) cualquier fila que YA sea owner.
+- `role` pasó a ser de solo-RPC (`update_staff_role()`, mismo patrón "una sola puerta de
+  entrada" que ya usa `moderate_review`). El primer intento de bloquear la columna
+  (`revoke update (role) ... from authenticated`) **no tuvo ningún efecto** porque la
+  tabla ya tenía un grant completo a nivel de tabla desde el setup inicial — lo detecté
+  probando el update directo contra la base real, no asumiendo que la migración había
+  funcionado. Se corrigió con una segunda migración
+  (`revoke update` a nivel de tabla + `grant update (status, location_id)` de vuelta).
+- Trigger `enforce_min_one_owner()` — bloquea dejar un salón sin ningún owner activo, sea
+  por demote, delete o disable, sin importar el camino usado para llegar ahí.
+- Invitación por correo (`inviteStaffMember`) + activación automática al iniciar sesión
+  (`activate_pending_invites()`, RPC nueva). El mecanismo ya estaba en el schema desde la
+  migración original de `salon_memberships` (columna `invited_email`, estado `invited`)
+  pero nunca se había construido nada que lo usara.
+
+**Fase 4 — platform-admin**: antes era una lista de solo lectura de salones. Ahora:
+crear salón (valida formato de slug y zona horaria IANA real vía
+`Intl.supportedValuesOf`), suspender/reactivar, y una página nueva para otorgar/revocar
+acceso de platform admin (busca al usuario por correo con `admin.auth.admin.listUsers()`
+paginado — Supabase no tiene un `getUserByEmail`). Trigger
+`enforce_min_one_platform_admin()`, mismo patrón que el de owners. **No** se agregó
+eliminar salón — no existe (ni se creó) una política RLS de DELETE para `salons`,
+decisión de diseño ya existente desde antes que se respetó tal cual.
+
+**Fase 5 — testing**: `lib/auth/permissions.test.ts` nuevo (Vitest, el runner ya
+existía, solo faltaba usarlo para esto). Se **refactorizó** `admin/customers/data.ts`
+extrayendo toda la lógica de redacción/restricción/buckets a `build-records.ts` (función
+pura, sin llamadas a Supabase) — era la superficie de mayor riesgo real de todo el plan:
+no está respaldada por ninguna política RLS, así que ningún test SQL la iba a cubrir sin
+importar cuántos se agregaran. `supabase/tests/staff-role-safeguards.sql` nuevo, mismo
+patrón que `rls-cross-tenant.sql` (transacción con rollback al final), cubre las 3
+migraciones de las Fases 3/4 — incluye el caso real de "cero platform admins" probado de
+forma segura (se insertan 2 admins de prueba primero, luego se borran los reales, todo
+dentro de la misma transacción que se revierte al final, así que nunca queda
+persistido). Wireado como `npm run test:staff-safeguards`, agregado a `test:db`.
+
+**Verificación**: todo contra datos reales (cuentas desechables creadas vía
+`auth.users` directo, limpiadas después), no solo build/lint. Hallazgo de entorno, no de
+código: el navegador de pruebas a veces deja de hidratar el árbol de React en páginas con
+muchos client components anidados — confirmado reproducible incluso en una página que no
+había tocado (`admin/customers`), en una pestaña nueva, con 16+ segundos de espera. Se
+resolvió solo tras reiniciar el dev server una vez; cuando persistió en otra fase, se
+verificó la lógica de servidor directamente contra Postgres (mismo truco de
+`set local request.jwt.claim.sub` que usan las pruebas SQL) en vez de insistir con clics
+de navegador que no iban a hidratar.
+
+**Pendiente / no cubierto**: la restricción de nombre del cliente en `admin/appointments`
+no tiene test automatizado — es JSX condicional en un Server Component, cubrirlo de
+verdad pediría Playwright/E2E, que este repo no tiene hoy (se verificó a mano en su
+momento, no quedó bloqueado por CI). `test:db` sigue sin estar en CI, mismo motivo que
+desde la Fase 2 de deuda técnica (sección 9): necesita acceso de escritura a un proyecto
+Supabase real, y wirearlo contra un proyecto de pruebas dedicado es decisión de Carlos.
