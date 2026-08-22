@@ -12,7 +12,8 @@
     "test:rls": "npx supabase db query --linked -f supabase/tests/rls-cross-tenant.sql",
     "test:booking-rpcs": "npx supabase db query --linked -f supabase/tests/booking-rpcs.sql",
     "test:staff-safeguards": "npx supabase db query --linked -f supabase/tests/staff-role-safeguards.sql",
-    "test:db": "npm run test:rls && npm run test:booking-rpcs && npm run test:staff-safeguards"
+    "test:newsletter": "npx supabase db query --linked -f supabase/tests/newsletter-subscribers-anon-insert.sql",
+    "test:db": "npm run test:rls && npm run test:booking-rpcs && npm run test:staff-safeguards && npm run test:newsletter"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",

@@ -14,10 +14,15 @@ export async function subscribeToNewsletter(salonId: string, formData: FormData)
   }
 
   const supabase = await createClient();
+  // Plain insert, not upsert: an ON CONFLICT DO UPDATE/DO NOTHING clause
+  // needs to detect the existing row, which under RLS goes through the
+  // SELECT policy (staff-only here) regardless of what INSERT/UPDATE allow
+  // — so anon can never satisfy it. A 23505 (unique_violation) on
+  // (salon_id, email) just means already subscribed; treat it as success.
   const { error } = await supabase
     .from("newsletter_subscribers")
-    .upsert({ salon_id: salonId, email }, { onConflict: "salon_id,email" });
+    .insert({ salon_id: salonId, email });
 
-  if (error) return { error: "No se pudo suscribir." };
+  if (error && error.code !== "23505") return { error: "No se pudo suscribir." };
   return { error: null };
 }
