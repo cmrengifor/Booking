@@ -2,7 +2,7 @@
 
 <!-- impeccable:design-schema 1 -->
 
-Written from the built world (the public salon site, `app/salon/[slug]/`), not authored ahead of it. Established as an **extension** of the tokens already in code since Phase 0 (Fraunces/Inter/gold, black-white-gold) — those predate this file and this file documents them, it did not invent them. Applies to the public-facing surface (landing page); the staff/customer utility screens (admin, account, auth) intentionally stay plainer, per the brief's own MVP philosophy of shipping the booking core before visual polish everywhere.
+Written from the built world (the public salon site, `app/salon/[slug]/`), not authored ahead of it. Established as an **extension** of the tokens already in code since Phase 0 (Fraunces/Inter/gold, black-white-gold) — those predate this file and this file documents them, it did not invent them. Applies to: the landing page AND the booking wizard (`app/salon/[slug]/book/`) — both are customer-facing and carry the premium positioning PRODUCT.md names as the core differentiator. The staff/customer utility screens (admin, account, auth) intentionally stay plainer, per the brief's own MVP philosophy of shipping the booking core before visual polish everywhere.
 
 ## Palette
 

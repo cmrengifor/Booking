@@ -2,8 +2,6 @@
 
 type Method = "pse" | "transferencia" | "efectivo";
 
-const DENOMINATIONS = ["50.000", "100.000"];
-
 export function PaymentStep({
   method,
   detail,
@@ -21,6 +19,11 @@ export function PaymentStep({
         procesamos pagos en línea.
       </p>
 
+      {/* Plain native radio inputs, not shadcn RadioGroup — with multiple
+          RadioGroup instances mounted simultaneously elsewhere in the wizard
+          (Questionnaire renders every step's DOM at once), base-ui's
+          onValueChange stopped firing for ALL of them, verified live. Same
+          bug class HANDOVER.md §8 documents for other Base UI components. */}
       <div className="flex flex-col gap-3">
         <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border p-4 has-checked:border-gold">
           <input
@@ -77,43 +80,7 @@ export function PaymentStep({
             onChange={() => onChange("efectivo", "pago_exacto")}
             className="mt-1"
           />
-          <div className="flex-1">
-            <p className="font-sans text-sm font-medium text-foreground">Efectivo</p>
-            {method === "efectivo" && (
-              <div className="mt-2 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={() => onChange("efectivo", "pago_exacto")}
-                  className={`w-fit rounded-md border px-3 py-1.5 font-sans text-xs transition-colors ${
-                    detail === "pago_exacto"
-                      ? "border-gold bg-gold/10 text-foreground"
-                      : "border-input text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Pago exacto
-                </button>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-sans text-xs text-muted-foreground">
-                    Necesito cambio de:
-                  </span>
-                  {DENOMINATIONS.map((d) => (
-                    <button
-                      key={d}
-                      type="button"
-                      onClick={() => onChange("efectivo", `cambio_${d}`)}
-                      className={`rounded-md border px-2.5 py-1 font-sans text-xs transition-colors ${
-                        detail === `cambio_${d}`
-                          ? "border-gold bg-gold/10 text-foreground"
-                          : "border-input text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      ${d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          <p className="font-sans text-sm font-medium text-foreground">Efectivo</p>
         </label>
       </div>
     </div>

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { DateTime } from "luxon";
+import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft, Home } from "lucide-react";
 import { toast } from "sonner";
@@ -18,6 +19,8 @@ import {
   QuestionnaireTitle,
 } from "@/components/ui/questionnaire";
 import type { Tables } from "@/types/database";
+import { computeBookingPrice } from "@/lib/domain/booking-price";
+import { resolveGoBackTarget, type Step } from "@/lib/domain/booking-navigation";
 import { TimePicker } from "./time-picker";
 import { PaymentStep } from "./payment-step";
 import { HomeServiceSection } from "./home-service-section";
@@ -32,10 +35,10 @@ type Artist = {
   display_name: string;
   bio: string | null;
   location_id: string | null;
+  headshot_url: string | null;
 };
 type HomeServiceZone = { id: string; name: string; surcharge: number };
 type PaymentMethod = "pse" | "transferencia" | "efectivo";
-type Step = "ubicacion" | "servicio" | "artista" | "fecha" | "hora" | "pago" | "confirmar";
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -246,6 +249,18 @@ function BookingWizardInner({
     );
   }
 
+  // Step sequence and the URL param whose absence gates entry into each one
+  // (waterfall — the first ungated step wins):
+  //
+  //   ubicacion -> servicio -> artista -> fecha -> hora -> pago -> confirmar
+  //       |            |           |         |        |       |
+  //  locationId    serviceId   preference   date   startsAt paymentStepDone
+  //  (+locationStepDone) (+variantId
+  //                       if needsVariant)
+  //
+  // resolveGoBackTarget (lib/domain/booking-navigation.ts) encodes the
+  // reverse of this table — see the comment there for why each branch
+  // clears the PREVIOUS step's field, not the current one.
   const currentStep: Step = !locationId || !locationStepDone
     ? "ubicacion"
     : !serviceId || needsVariant
@@ -260,29 +275,22 @@ function BookingWizardInner({
               ? "pago"
               : "confirmar";
 
-  // Each branch clears whatever field gates the PREVIOUS step, not the
-  // current one — the current step's own gating field is already unset
-  // (that's precisely why we're on this step), so clearing it again is a
-  // no-op and the wizard silently fails to go back.
   function goBack() {
-    if (currentStep === "confirmar") {
-      setPaymentStepDone(false);
-      return setParams({ paymentMethod: null, paymentDetail: null });
+    const target = resolveGoBackTarget(currentStep, needsVariant);
+    if (!target) {
+      console.warn(`goBack(): unrecognized step "${currentStep}" — no navigation action taken.`);
+      return;
     }
-    if (currentStep === "pago") return setParams({ startsAt: null });
-    if (currentStep === "hora") return setParams({ date: null });
-    if (currentStep === "fecha") return setParams({ preference: null, artistId: null });
-    if (currentStep === "artista") {
-      setExpandedServiceId(serviceId);
-      return setParams({ serviceId: null, variantId: null });
+    if (target.kind === "navigate-home") {
+      router.push(`/salon/${salon.slug}`);
+      return;
     }
-    if (currentStep === "servicio") {
-      if (needsVariant) return setParams({ serviceId: null, variantId: null });
-      setExpandedServiceId(serviceId);
-      setLocationStepDone(false);
-      return setParams({ serviceId: null, variantId: null });
-    }
-    router.push(`/salon/${salon.slug}`);
+    if (target.sideEffects?.resetPaymentStepDone) setPaymentStepDone(false);
+    if (target.sideEffects?.expandCurrentService) setExpandedServiceId(serviceId);
+    if (target.sideEffects?.resetLocationStepDone) setLocationStepDone(false);
+    const cleared: Record<string, null> = {};
+    for (const param of target.params) cleared[param] = null;
+    setParams(cleared);
   }
 
   // Only Ubicación and Pago use the built-in Next — every other step
@@ -301,6 +309,12 @@ function BookingWizardInner({
         )}, ${dt.toFormat("HH:mm")}`;
       })()
     : "";
+
+  const selectedVariant = variantId ? serviceVariants.find((v) => v.id === variantId) ?? null : null;
+  const selectedZone = homeZoneId ? homeServiceZones.find((z) => z.id === homeZoneId) ?? null : null;
+  const totalPrice = selectedService
+    ? computeBookingPrice(selectedService, selectedVariant, homeService, selectedZone)
+    : null;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-8">
@@ -332,11 +346,22 @@ function BookingWizardInner({
         {/* Ubicación: choosing a sede plus (new) whether to book at-home. */}
         <QuestionnaireItem name="ubicacion">
           <QuestionnaireTitle>Elige una ubicación</QuestionnaireTitle>
-          <div className="flex flex-col gap-2">
+          {/* Plain buttons with manual radio ARIA, not shadcn RadioGroup — with
+              4 RadioGroup instances mounted simultaneously (Questionnaire
+              renders every step's DOM at once, not just the active one),
+              base-ui's onValueChange stops firing for ALL of them, including
+              the time-picker's previously-working one. Verified live:
+              removing this from RadioGroup restored time-picker's clicks.
+              Same bug class HANDOVER.md §8 already documents for Menu/
+              Questionnaire-choices/Accordion — just a new trigger condition
+              (multiple simultaneous instances, not a single broken component). */}
+          <div role="radiogroup" className="flex flex-col gap-2">
             {locations.map((loc) => (
               <button
                 key={loc.id}
                 type="button"
+                role="radio"
+                aria-checked={locationId === loc.id}
                 onClick={() => setParams({ locationId: loc.id, preference: null, artistId: null })}
                 className={cn(
                   "w-full rounded-md border px-4 py-3 text-left font-sans text-sm hover:border-gold",
@@ -357,14 +382,19 @@ function BookingWizardInner({
             onAddressChange={setHomeAddress}
             onZoneChange={setHomeZoneId}
           />
-          <Button
-            type="button"
-            disabled={!locationId || !!homeServiceError()}
-            onClick={() => setLocationStepDone(true)}
-            className="w-fit px-8"
-          >
-            Siguiente
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              disabled={!locationId || !!homeServiceError()}
+              onClick={() => setLocationStepDone(true)}
+              className="w-fit px-8"
+            >
+              Siguiente
+            </Button>
+            {locationId && homeServiceError() && (
+              <p className="font-sans text-xs text-destructive">{homeServiceError()}</p>
+            )}
+          </div>
         </QuestionnaireItem>
 
         {/* Servicio: deep-link entry shows just one service's variants; the
@@ -451,15 +481,22 @@ function BookingWizardInner({
           )}
         </QuestionnaireItem>
 
-        {/* Artista: "Cualquiera disponible" fija primero */}
+        {/* Artista: "Cualquiera disponible" fija primero, luego cada
+            estilista con foto — reusa el patrón null-safe de
+            artists-section.tsx (fallback a un bloque muted, no un ícono
+            genérico) para quienes aún no tienen headshot_url. Plain buttons
+            with manual radio ARIA, not RadioGroup — see the comment on the
+            Ubicación step above for why. */}
         <QuestionnaireItem name="artista">
           <QuestionnaireTitle>¿Con quién?</QuestionnaireTitle>
-          <div className="flex flex-col gap-2">
+          <div role="radiogroup" className="flex flex-col gap-2">
             <button
               type="button"
+              role="radio"
+              aria-checked={preference === "any"}
               onClick={() => setParams({ preference: "any", artistId: null })}
               className={cn(
-                "w-full rounded-md border px-4 py-3 text-left font-sans text-sm hover:border-gold",
+                "flex w-full items-center rounded-md border px-4 py-3 text-left font-sans text-sm hover:border-gold",
                 preference === "any" ? "border-gold bg-gold/5" : "border-border"
               )}
             >
@@ -469,16 +506,33 @@ function BookingWizardInner({
               <button
                 key={a.salon_membership_id}
                 type="button"
+                role="radio"
+                aria-checked={preference === "specific" && artistId === a.salon_membership_id}
                 onClick={() => setParams({ preference: "specific", artistId: a.salon_membership_id })}
                 className={cn(
-                  "w-full rounded-md border px-4 py-3 text-left font-sans text-sm hover:border-gold",
+                  "flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left font-sans text-sm hover:border-gold",
                   preference === "specific" && artistId === a.salon_membership_id
                     ? "border-gold bg-gold/5"
                     : "border-border"
                 )}
               >
-                <span className="text-foreground">{a.display_name}</span>
-                {a.bio && <span className="block text-muted-foreground">{a.bio}</span>}
+                {a.headshot_url ? (
+                  <div className="relative size-14 shrink-0 overflow-hidden rounded-sm">
+                    <Image
+                      src={a.headshot_url}
+                      alt={a.display_name}
+                      fill
+                      sizes="56px"
+                      className="object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="size-14 shrink-0 rounded-sm bg-muted" />
+                )}
+                <div>
+                  <span className="text-foreground">{a.display_name}</span>
+                  {a.bio && <span className="block text-muted-foreground">{a.bio}</span>}
+                </div>
               </button>
             ))}
           </div>
@@ -520,17 +574,21 @@ function BookingWizardInner({
             detail={paymentDetail}
             onChange={(method, detail) => setParams({ paymentMethod: method, paymentDetail: detail || null })}
           />
-          <Button
-            type="button"
-            disabled={
-              !paymentMethod ||
-              ((paymentMethod === "transferencia" || paymentMethod === "efectivo") && !paymentDetail)
-            }
-            onClick={() => setPaymentStepDone(true)}
-            className="w-fit px-8"
-          >
-            Siguiente
-          </Button>
+          <div className="flex flex-col gap-1">
+            <Button
+              type="button"
+              disabled={!paymentMethod || (paymentMethod === "transferencia" && !paymentDetail)}
+              onClick={() => setPaymentStepDone(true)}
+              className="w-fit px-8"
+            >
+              Siguiente
+            </Button>
+            {paymentMethod === "transferencia" && !paymentDetail && (
+              <p className="font-sans text-xs text-destructive">
+                Elige Llave Bre-B o Nequi para continuar.
+              </p>
+            )}
+          </div>
         </QuestionnaireItem>
 
         {/* Confirmar: resumen + login/celular + enviar */}
@@ -567,13 +625,18 @@ function BookingWizardInner({
                 {paymentMethod === "pse" && "PSE"}
                 {paymentMethod === "transferencia" &&
                   `Transferencia — ${paymentDetail === "nequi" ? "Nequi" : "Llave Bre-B"}`}
-                {paymentMethod === "efectivo" &&
-                  `Efectivo — ${
-                    paymentDetail === "pago_exacto"
-                      ? "pago exacto"
-                      : `cambio de $${paymentDetail.replace("cambio_", "")}`
-                  }`}
+                {paymentMethod === "efectivo" && "Efectivo"}
               </p>
+              {totalPrice != null && (
+                <p className="mt-2 border-t border-border pt-2 font-mono text-base text-gold">
+                  ${totalPrice.toLocaleString("es-CO")}
+                  {homeService && selectedZone && (
+                    <span className="ml-2 font-sans text-xs text-muted-foreground">
+                      (incluye recargo domicilio {selectedZone.name})
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
 
             {userEmail === undefined ? null : userEmail ? (
@@ -616,6 +679,9 @@ function BookingWizardInner({
                 <p className="font-sans text-sm text-foreground">
                   Para reservar necesitas iniciar sesión — así podemos enviarte la
                   confirmación y dejarte reagendar o cancelar desde tu cuenta.
+                </p>
+                <p className="font-sans text-sm text-gold">
+                  ✓ Tu selección queda guardada — inicia sesión y vuelves directo aquí.
                 </p>
                 <Link
                   href={`/auth/login?next=${encodeURIComponent(

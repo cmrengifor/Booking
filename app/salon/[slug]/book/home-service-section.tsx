@@ -40,7 +40,7 @@ export function HomeServiceSection({
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
             />
             <p className="font-sans text-[11px] text-muted-foreground">
-              Mapa con autocompletado próximamente — por ahora escribe la dirección completa.
+              Un asesor confirma la dirección contigo antes de la cita.
             </p>
           </div>
           <div className="flex flex-col gap-1">

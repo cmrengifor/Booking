@@ -33,7 +33,7 @@ export default async function BookPage({
         .order("sort_order"),
       supabase
         .from("artist_profiles")
-        .select("salon_membership_id, display_name, bio, location_id")
+        .select("salon_membership_id, display_name, bio, location_id, headshot_url")
         .eq("salon_id", salon.id)
         .eq("published", true)
         .order("sort_order"),
