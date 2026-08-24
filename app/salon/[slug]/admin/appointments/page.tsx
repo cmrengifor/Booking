@@ -44,38 +44,60 @@ export default async function AdminAppointmentsPage({
   const view = sp.view === "calendar" ? "calendar" : "list";
 
   if (view === "calendar") {
-    const today = DateTime.now().setZone(salon.timezone).toISODate()!;
+    const zone = salon.timezone;
+    const today = DateTime.now().setZone(zone).toISODate()!;
     const requestedDate = typeof sp.date === "string" ? sp.date : null;
     const dateISO =
-      requestedDate && DateTime.fromISO(requestedDate, { zone: salon.timezone }).isValid
-        ? requestedDate
-        : today;
-    const dayStart = DateTime.fromISO(dateISO, { zone: salon.timezone }).startOf("day");
-    const dayEnd = dayStart.plus({ days: 1 });
+      requestedDate && DateTime.fromISO(requestedDate, { zone }).isValid ? requestedDate : today;
+    const mode = sp.mode === "week" ? "week" : sp.mode === "month" ? "month" : "day";
+    const canAssign = canViewAllAppointments(membership);
 
-    let dayQuery = supabase
+    const anchor = DateTime.fromISO(dateISO, { zone });
+    const range =
+      mode === "day"
+        ? { start: anchor.startOf("day"), end: anchor.startOf("day").plus({ days: 1 }) }
+        : mode === "week"
+          ? { start: anchor.startOf("week"), end: anchor.startOf("week").plus({ days: 7 }) }
+          : {
+              start: anchor.startOf("month").startOf("week"),
+              end: anchor.endOf("month").endOf("week").plus({ days: 1 }),
+            };
+
+    let rangeQuery = supabase
       .from("appointments")
       .select(
         "id, status, starts_at, ends_at, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name)"
       )
       .eq("salon_id", salon.id)
-      .gte("starts_at", dayStart.toISO())
-      .lt("starts_at", dayEnd.toISO())
+      .gte("starts_at", range.start.toISO())
+      .lt("starts_at", range.end.toISO())
       .order("starts_at");
     if (restrictToOwn && membership) {
-      dayQuery = dayQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
+      rangeQuery = rangeQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
     }
 
-    const [dayRes, stylistsRes] = await Promise.all([
-      dayQuery,
+    const [rangeRes, stylistsRes, openPoolRes] = await Promise.all([
+      rangeQuery,
       supabase
         .from("salon_memberships")
         .select("id, artist_profiles(display_name)")
         .eq("salon_id", salon.id)
         .eq("role", "stylist")
         .eq("status", "active"),
+      // Salon-wide, not date-scoped — the assign panel is meant to surface
+      // every outstanding unassigned booking, not just the ones landing in
+      // whichever day/week/month happens to be on screen.
+      canAssign
+        ? supabase
+            .from("appointments")
+            .select("id, starts_at, ends_at, services(name), service_variants(name)")
+            .eq("salon_id", salon.id)
+            .eq("status", "open")
+            .order("starts_at")
+            .limit(30)
+        : Promise.resolve({ data: [], error: null }),
     ]);
-    assertNoQueryErrors([dayRes, stylistsRes], "Failed to load calendar");
+    assertNoQueryErrors([rangeRes, stylistsRes, openPoolRes], "Failed to load calendar");
 
     return (
       <div className="flex flex-col gap-8 p-8">
@@ -83,13 +105,16 @@ export default async function AdminAppointmentsPage({
         <CalendarView
           slug={slug}
           salon={salon}
+          mode={mode}
           dateISO={dateISO}
-          appointments={dayRes.data ?? []}
+          appointments={rangeRes.data ?? []}
           stylists={stylistsRes.data ?? []}
+          openPool={openPoolRes.data ?? []}
           restrictToOwn={restrictToOwn}
           membershipId={membership?.id ?? null}
           isStylist={isStylist}
           showCustomerName={showCustomerName}
+          canAssign={canAssign}
         />
       </div>
     );

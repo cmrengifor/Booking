@@ -1,189 +1,113 @@
 import { DateTime } from "luxon";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { Salon } from "@/lib/tenant/resolve-salon";
-import { takeOpenAppointment } from "./actions";
+import { DayGrid } from "./day-grid";
+import { WeekAgenda } from "./week-agenda";
+import { MonthGrid } from "./month-grid";
+import { AssignOpenPanel } from "./assign-open-panel";
+import { type Appt, type Stylist, type OpenAppt, type CalendarMode, calendarHref } from "./calendar-shared";
 
-type Appt = {
-  id: string;
-  status: string;
-  starts_at: string;
-  ends_at: string;
-  salon_membership_id: string | null;
-  customers: { profiles: { full_name: string | null } | null } | null;
-  services: { name: string } | null;
-  service_variants: { name: string } | null;
-};
-
-type Stylist = { id: string; artist_profiles: { display_name: string } | null };
-
-const PX_PER_MIN = 1;
-const MIN_BLOCK_HEIGHT = 22;
-const DEFAULT_START_HOUR = 8;
-const DEFAULT_END_HOUR = 20;
-
-const STATUS_LABEL: Record<string, string> = {
-  pending: "Pendiente",
-  confirmed: "Confirmada",
-  completed: "Completada",
-  cancelled: "Cancelada",
-  no_show: "No asistió",
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  pending: "bg-amber-500/15 text-amber-700",
-  confirmed: "bg-sky-500/15 text-sky-700",
-  completed: "bg-emerald-500/15 text-emerald-700 opacity-80",
-  cancelled: "bg-red-500/10 text-red-700 opacity-70 line-through",
-  no_show: "bg-red-500/10 text-red-700 opacity-70",
-};
-
-function minutesInZone(iso: string, zone: string) {
-  const dt = DateTime.fromISO(iso).setZone(zone);
-  return dt.hour * 60 + dt.minute;
+function navDates(mode: CalendarMode, dateISO: string, zone: string) {
+  const anchor = DateTime.fromISO(dateISO, { zone });
+  if (mode === "day") {
+    return { prev: anchor.minus({ days: 1 }).toISODate()!, next: anchor.plus({ days: 1 }).toISODate()! };
+  }
+  if (mode === "week") {
+    const weekStart = anchor.startOf("week");
+    return { prev: weekStart.minus({ days: 7 }).toISODate()!, next: weekStart.plus({ days: 7 }).toISODate()! };
+  }
+  return {
+    prev: anchor.startOf("month").minus({ months: 1 }).toISODate()!,
+    next: anchor.startOf("month").plus({ months: 1 }).toISODate()!,
+  };
 }
 
-function timeLabel(iso: string, zone: string) {
-  return DateTime.fromISO(iso).setZone(zone).toFormat("H:mm");
-}
-
-function appointmentLine(a: Appt, showCustomerName: boolean) {
-  const service = a.service_variants?.name
-    ? `${a.services?.name} — ${a.service_variants.name}`
-    : a.services?.name;
-  const who = showCustomerName ? a.customers?.profiles?.full_name : null;
-  return who ? `${who} — ${service}` : service;
+function rangeLabel(mode: CalendarMode, dateISO: string, zone: string) {
+  const anchor = DateTime.fromISO(dateISO, { zone }).setLocale("es");
+  if (mode === "day") {
+    const isToday = dateISO === DateTime.now().setZone(zone).toISODate();
+    return `${isToday ? "Hoy · " : ""}${anchor.toFormat("d 'de' LLLL")}`;
+  }
+  if (mode === "week") {
+    const start = anchor.startOf("week");
+    const end = start.plus({ days: 6 });
+    return start.month === end.month
+      ? `${start.toFormat("d")} – ${end.toFormat("d 'de' LLLL")}`
+      : `${start.toFormat("d LLL")} – ${end.toFormat("d LLL")}`;
+  }
+  return anchor.toFormat("LLLL yyyy");
 }
 
 export function CalendarView({
   slug,
   salon,
+  mode,
   dateISO,
   appointments,
   stylists,
+  openPool,
   restrictToOwn,
   membershipId,
   isStylist,
   showCustomerName,
+  canAssign,
 }: {
   slug: string;
   salon: Salon;
+  mode: CalendarMode;
   dateISO: string;
   appointments: Appt[];
   stylists: Stylist[];
+  openPool: OpenAppt[];
   restrictToOwn: boolean;
   membershipId: string | null;
   isStylist: boolean;
   showCustomerName: boolean;
+  canAssign: boolean;
 }) {
   const zone = salon.timezone;
-  const open = appointments.filter((a) => a.status === "open");
-
-  const columns: { key: string; label: string; items: Appt[] }[] = restrictToOwn
-    ? [
-        {
-          key: "own",
-          label: "Mis citas",
-          items: appointments.filter((a) => a.salon_membership_id === membershipId),
-        },
-      ]
-    : stylists.map((s) => ({
-        key: s.id,
-        label: s.artist_profiles?.display_name ?? "Sin nombre",
-        items: appointments.filter((a) => a.salon_membership_id === s.id),
-      }));
-
-  const bounds = appointments.length
-    ? {
-        startHour: Math.min(DEFAULT_START_HOUR, Math.floor(Math.min(...appointments.map((a) => minutesInZone(a.starts_at, zone))) / 60)),
-        endHour: Math.max(DEFAULT_END_HOUR, Math.ceil(Math.max(...appointments.map((a) => minutesInZone(a.ends_at, zone))) / 60)),
-      }
-    : { startHour: DEFAULT_START_HOUR, endHour: DEFAULT_END_HOUR };
-  const gridStart = bounds.startHour * 60;
-  const gridHeight = (bounds.endHour - bounds.startHour) * 60 * PX_PER_MIN;
-
-  const hourMarks = Array.from({ length: bounds.endHour - bounds.startHour }, (_, i) => bounds.startHour + i);
-
-  function block(a: Appt) {
-    const top = (minutesInZone(a.starts_at, zone) - gridStart) * PX_PER_MIN;
-    const height = Math.max(
-      MIN_BLOCK_HEIGHT,
-      (minutesInZone(a.ends_at, zone) - minutesInZone(a.starts_at, zone)) * PX_PER_MIN
-    );
-    const time = `${timeLabel(a.starts_at, zone)}–${timeLabel(a.ends_at, zone)}`;
-
-    if (a.status === "open") {
-      return (
-        <div
-          key={a.id}
-          style={{ top, height }}
-          className="absolute right-1 left-1 overflow-hidden rounded-md border border-dashed border-muted-foreground/50 px-2 py-1"
-        >
-          <p className="truncate font-sans text-[11px] text-muted-foreground">
-            {time} · {appointmentLine(a, false)}
-          </p>
-          {isStylist && (
-            <form action={takeOpenAppointment.bind(null, a.id, null, slug)} className="mt-1">
-              <Button type="submit" size="xs">
-                Tomar
-              </Button>
-            </form>
-          )}
-        </div>
-      );
-    }
-
-    return (
-      <div
-        key={a.id}
-        style={{ top, height }}
-        className={`absolute right-1 left-1 overflow-hidden rounded-md px-2 py-1 ${STATUS_CLASS[a.status] ?? "bg-muted text-muted-foreground"}`}
-      >
-        <p className="truncate font-sans text-[11px] font-medium">
-          {time} {a.status !== "confirmed" && `· ${STATUS_LABEL[a.status] ?? a.status}`}
-        </p>
-        <p className="truncate font-sans text-xs text-foreground">{appointmentLine(a, showCustomerName)}</p>
-      </div>
-    );
-  }
-
-  const prevDate = DateTime.fromISO(dateISO, { zone }).minus({ days: 1 }).toISODate();
-  const nextDate = DateTime.fromISO(dateISO, { zone }).plus({ days: 1 }).toISODate();
-  const isToday = dateISO === DateTime.now().setZone(zone).toISODate();
+  const nav = navDates(mode, dateISO, zone);
+  const zoneNow = DateTime.now().setZone(zone);
+  const isAtToday =
+    mode === "day"
+      ? dateISO === zoneNow.toISODate()
+      : mode === "week"
+        ? DateTime.fromISO(dateISO, { zone }).startOf("week").toISODate() === zoneNow.startOf("week").toISODate()
+        : DateTime.fromISO(dateISO, { zone }).startOf("month").toISODate() === zoneNow.startOf("month").toISODate();
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
-        <Link
-          href={`?view=calendar&date=${prevDate}`}
-          aria-label="Día anterior"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M15 18l-6-6 6-6" />
-          </svg>
-        </Link>
-        <span className="font-medium text-foreground">
-          {isToday ? "Hoy · " : ""}
-          {DateTime.fromISO(dateISO, { zone }).setLocale("es").toFormat("d 'de' LLLL")}
-        </span>
-        <Link
-          href={`?view=calendar&date=${nextDate}`}
-          aria-label="Día siguiente"
-          className="text-muted-foreground hover:text-foreground"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M9 18l6-6-6-6" />
-          </svg>
-        </Link>
-        {!isToday && (
-          <Link
-            href={`?view=calendar&date=${DateTime.now().setZone(zone).toISODate()}`}
-            className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            Volver a hoy
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
+          <Link href={calendarHref(mode, nav.prev)} aria-label="Anterior" className="text-muted-foreground hover:text-foreground">
+            <ChevronLeft className="size-4" />
           </Link>
-        )}
+          <span className="font-medium text-foreground capitalize">{rangeLabel(mode, dateISO, zone)}</span>
+          <Link href={calendarHref(mode, nav.next)} aria-label="Siguiente" className="text-muted-foreground hover:text-foreground">
+            <ChevronRight className="size-4" />
+          </Link>
+          {!isAtToday && (
+            <Link href={calendarHref(mode, DateTime.now().setZone(zone).toISODate()!)} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+              Volver a hoy
+            </Link>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex overflow-hidden rounded-md border border-border font-sans text-xs">
+            {(["day", "week", "month"] as const).map((m) => (
+              <Link
+                key={m}
+                href={calendarHref(m, dateISO)}
+                className={mode === m ? "bg-primary px-3 py-1.5 text-primary-foreground" : "px-3 py-1.5 text-muted-foreground hover:text-foreground"}
+              >
+                {m === "day" ? "Día" : m === "week" ? "Semana" : "Mes"}
+              </Link>
+            ))}
+          </div>
+          {canAssign && <AssignOpenPanel slug={slug} zone={zone} stylists={stylists} openAppointments={openPool} />}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-4 font-sans text-xs text-muted-foreground">
@@ -209,56 +133,40 @@ export function CalendarView({
         </span>
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-border">
-        <div className="flex min-w-[640px] border-b border-border">
-          <div className="w-14 shrink-0 border-r border-border" />
-          <div className="flex-1 border-r border-border px-3 py-2 font-sans text-xs font-medium text-foreground">
-            Abiertas
-          </div>
-          {columns.map((c) => (
-            <div key={c.key} className="flex-1 border-r border-border px-3 py-2 font-sans text-xs font-medium text-foreground last:border-r-0">
-              {c.label}
-            </div>
-          ))}
-        </div>
-
-        <div className="flex min-w-[640px]" style={{ height: gridHeight }}>
-          <div className="relative w-14 shrink-0 border-r border-border">
-            {hourMarks.map((h) => (
-              <span
-                key={h}
-                style={{ top: (h - bounds.startHour) * 60 * PX_PER_MIN - 6 }}
-                className="absolute left-2 font-sans text-[11px] text-muted-foreground"
-              >
-                {h}:00
-              </span>
-            ))}
-          </div>
-
-          <div
-            className="relative flex-1 border-r border-border"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 60px)",
-            }}
-          >
-            {open.map(block)}
-          </div>
-
-          {columns.map((c) => (
-            <div
-              key={c.key}
-              className="relative flex-1 border-r border-border last:border-r-0"
-              style={{
-                backgroundImage:
-                  "repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 60px)",
-              }}
-            >
-              {c.items.map(block)}
-            </div>
-          ))}
-        </div>
-      </div>
+      {mode === "day" && (
+        <DayGrid
+          slug={slug}
+          zone={zone}
+          appointments={appointments}
+          stylists={stylists}
+          restrictToOwn={restrictToOwn}
+          membershipId={membershipId}
+          isStylist={isStylist}
+          showCustomerName={showCustomerName}
+        />
+      )}
+      {mode === "week" && (
+        <WeekAgenda
+          slug={slug}
+          zone={zone}
+          weekStartISO={DateTime.fromISO(dateISO, { zone }).startOf("week").toISODate()!}
+          appointments={appointments}
+          stylists={stylists}
+          restrictToOwn={restrictToOwn}
+          membershipId={membershipId}
+          isStylist={isStylist}
+          showCustomerName={showCustomerName}
+        />
+      )}
+      {mode === "month" && (
+        <MonthGrid
+          zone={zone}
+          monthDateISO={dateISO}
+          appointments={appointments}
+          restrictToOwn={restrictToOwn}
+          membershipId={membershipId}
+        />
+      )}
     </div>
   );
 }
