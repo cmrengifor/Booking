@@ -10,6 +10,7 @@ import { TriggerActionButton } from "./trigger-action-button";
 import { DeclineForm } from "./decline-form";
 import { CollapsibleSection } from "./collapsible-section";
 import { CalendarView } from "./calendar-view";
+import { type Stylist, type CalendarMode } from "./calendar-shared";
 import {
   acceptPending,
   complete,
@@ -32,6 +33,7 @@ export default async function AdminAppointmentsPage({
 
   const membership = await getSalonMembership(salon.id);
   const supabase = await createClient();
+  const zone = salon.timezone;
 
   // A stylist only sees their own assigned appointments — plus the
   // unassigned "open" pool, so self-claiming still works — and never sees
@@ -41,17 +43,35 @@ export default async function AdminAppointmentsPage({
   const restrictToOwn = !canViewAllAppointments(membership);
   const showCustomerName = canViewAllAppointments(membership);
   const isStylist = membership?.role === "stylist";
+  const canAssign = canViewAllAppointments(membership);
   const view = sp.view === "calendar" ? "calendar" : "list";
+  const mode: CalendarMode = sp.mode === "week" ? "week" : sp.mode === "month" ? "month" : "day";
+
+  const today = DateTime.now().setZone(zone).toISODate()!;
+  const requestedDate = typeof sp.date === "string" ? sp.date : null;
+  const dateISO =
+    requestedDate && DateTime.fromISO(requestedDate, { zone }).isValid ? requestedDate : today;
+
+  // Only owner/manager/receptionist can even see other stylists' work, so
+  // only they get a stylist filter — for a stylist, "restrictToOwn" already
+  // pins the view to their own appointments and the filter would be a
+  // no-op control.
+  const requestedStylist = typeof sp.stylist === "string" && sp.stylist ? sp.stylist : null;
+  const stylistFilter = restrictToOwn ? null : requestedStylist;
+  // The id actually applied to every appointments query below: a stylist's
+  // own id when they're restricted, whichever stylist an admin picked from
+  // the filter, or null (no narrowing) otherwise.
+  const effectiveStylistId = restrictToOwn ? (membership?.id ?? null) : stylistFilter;
+
+  const { data: stylists, error: stylistsError } = await supabase
+    .from("salon_memberships")
+    .select("id, artist_profiles(display_name, headshot_url)")
+    .eq("salon_id", salon.id)
+    .eq("role", "stylist")
+    .eq("status", "active");
+  if (stylistsError) throw new Error(`Failed to load stylists: ${stylistsError.message}`);
 
   if (view === "calendar") {
-    const zone = salon.timezone;
-    const today = DateTime.now().setZone(zone).toISODate()!;
-    const requestedDate = typeof sp.date === "string" ? sp.date : null;
-    const dateISO =
-      requestedDate && DateTime.fromISO(requestedDate, { zone }).isValid ? requestedDate : today;
-    const mode = sp.mode === "week" ? "week" : sp.mode === "month" ? "month" : "day";
-    const canAssign = canViewAllAppointments(membership);
-
     const anchor = DateTime.fromISO(dateISO, { zone });
     const range =
       mode === "day"
@@ -72,18 +92,12 @@ export default async function AdminAppointmentsPage({
       .gte("starts_at", range.start.toISO())
       .lt("starts_at", range.end.toISO())
       .order("starts_at");
-    if (restrictToOwn && membership) {
-      rangeQuery = rangeQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
+    if (effectiveStylistId) {
+      rangeQuery = rangeQuery.or(`status.eq.open,salon_membership_id.eq.${effectiveStylistId}`);
     }
 
-    const [rangeRes, stylistsRes, openPoolRes] = await Promise.all([
+    const [rangeRes, openPoolRes] = await Promise.all([
       rangeQuery,
-      supabase
-        .from("salon_memberships")
-        .select("id, artist_profiles(display_name, headshot_url)")
-        .eq("salon_id", salon.id)
-        .eq("role", "stylist")
-        .eq("status", "active"),
       // Salon-wide, not date-scoped — the assign panel is meant to surface
       // every outstanding unassigned booking, not just the ones landing in
       // whichever day/week/month happens to be on screen.
@@ -97,24 +111,33 @@ export default async function AdminAppointmentsPage({
             .limit(30)
         : Promise.resolve({ data: [], error: null }),
     ]);
-    assertNoQueryErrors([rangeRes, stylistsRes, openPoolRes], "Failed to load calendar");
+    assertNoQueryErrors([rangeRes, openPoolRes], "Failed to load calendar");
 
     return (
       <div className="flex flex-col gap-8 p-8">
-        <AppointmentsHeader slug={slug} view={view} />
+        <AppointmentsHeader
+          slug={slug}
+          view={view}
+          mode={mode}
+          dateISO={dateISO}
+          stylists={stylists ?? []}
+          stylistFilter={stylistFilter}
+          showStylistFilter={!restrictToOwn}
+        />
         <CalendarView
           slug={slug}
           salon={salon}
           mode={mode}
           dateISO={dateISO}
           appointments={rangeRes.data ?? []}
-          stylists={stylistsRes.data ?? []}
+          stylists={stylists ?? []}
           openPool={openPoolRes.data ?? []}
           restrictToOwn={restrictToOwn}
           membershipId={membership?.id ?? null}
           isStylist={isStylist}
           showCustomerName={showCustomerName}
           canAssign={canAssign}
+          stylistFilter={stylistFilter}
         />
       </div>
     );
@@ -127,8 +150,8 @@ export default async function AdminAppointmentsPage({
     )
     .eq("salon_id", salon.id)
     .in("status", ["open", "pending", "confirmed"]);
-  if (restrictToOwn && membership) {
-    activeQuery = activeQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
+  if (effectiveStylistId) {
+    activeQuery = activeQuery.or(`status.eq.open,salon_membership_id.eq.${effectiveStylistId}`);
   }
 
   let pastQuery = supabase
@@ -138,24 +161,17 @@ export default async function AdminAppointmentsPage({
     )
     .eq("salon_id", salon.id)
     .in("status", ["completed", "cancelled", "no_show"]);
-  if (restrictToOwn && membership) {
-    pastQuery = pastQuery.eq("salon_membership_id", membership.id);
+  if (effectiveStylistId) {
+    pastQuery = pastQuery.eq("salon_membership_id", effectiveStylistId);
   }
 
-  const [appointmentsRes, pastAppointmentsRes, stylistsRes] = await Promise.all([
+  const [appointmentsRes, pastAppointmentsRes] = await Promise.all([
     activeQuery.order("starts_at").limit(200),
     pastQuery.order("starts_at", { ascending: false }).limit(50),
-    supabase
-      .from("salon_memberships")
-      .select("id, artist_profiles(display_name)")
-      .eq("salon_id", salon.id)
-      .eq("role", "stylist")
-      .eq("status", "active"),
   ]);
-  assertNoQueryErrors([appointmentsRes, pastAppointmentsRes, stylistsRes], "Failed to load appointments");
+  assertNoQueryErrors([appointmentsRes, pastAppointmentsRes], "Failed to load appointments");
   const { data: appointments } = appointmentsRes;
   const { data: pastAppointments } = pastAppointmentsRes;
-  const { data: stylists } = stylistsRes;
 
   const open = (appointments ?? []).filter((a) => a.status === "open");
   const pending = (appointments ?? []).filter((a) => a.status === "pending");
@@ -170,7 +186,15 @@ export default async function AdminAppointmentsPage({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <AppointmentsHeader slug={slug} view={view} />
+      <AppointmentsHeader
+        slug={slug}
+        view={view}
+        mode={mode}
+        dateISO={dateISO}
+        stylists={stylists ?? []}
+        stylistFilter={stylistFilter}
+        showStylistFilter={!restrictToOwn}
+      />
 
       <CollapsibleSection title={`Abiertas (${open.length})`}>
         {open.map((a) => (
@@ -368,35 +392,85 @@ function Empty() {
   return <p className="font-sans text-sm text-muted-foreground">Nada aquí.</p>;
 }
 
-function AppointmentsHeader({ slug, view }: { slug: string; view: "list" | "calendar" }) {
+function AppointmentsHeader({
+  slug,
+  view,
+  mode,
+  dateISO,
+  stylists,
+  stylistFilter,
+  showStylistFilter,
+}: {
+  slug: string;
+  view: "list" | "calendar";
+  mode: CalendarMode;
+  dateISO: string;
+  stylists: Stylist[];
+  stylistFilter: string | null;
+  showStylistFilter: boolean;
+}) {
   const base = `/salon/${slug}/admin/appointments`;
+
+  function href(nextView: "list" | "calendar", stylistId: string | null) {
+    const qp = new URLSearchParams();
+    if (nextView === "calendar") {
+      qp.set("view", "calendar");
+      qp.set("mode", mode);
+      qp.set("date", dateISO);
+    }
+    if (stylistId) qp.set("stylist", stylistId);
+    const qs = qp.toString();
+    return qs ? `${base}?${qs}` : base;
+  }
+
+  const activePill = "rounded-full bg-primary px-3 py-1 text-primary-foreground";
+  const inactivePill = "rounded-full border border-border px-3 py-1 text-muted-foreground hover:text-foreground";
+
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
         <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">Panel del salón</p>
         <h1 className="mt-2 font-heading text-3xl text-foreground">Citas</h1>
       </div>
-      <div className="flex overflow-hidden rounded-md border border-border font-sans text-xs">
-        <Link
-          href={base}
-          className={
-            view === "list"
-              ? "bg-primary px-3 py-1.5 text-primary-foreground"
-              : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
-          }
-        >
-          Lista
-        </Link>
-        <Link
-          href={`${base}?view=calendar`}
-          className={
-            view === "calendar"
-              ? "bg-primary px-3 py-1.5 text-primary-foreground"
-              : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
-          }
-        >
-          Calendario
-        </Link>
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex overflow-hidden rounded-md border border-border font-sans text-xs">
+          <Link
+            href={href("list", stylistFilter)}
+            className={
+              view === "list"
+                ? "bg-primary px-3 py-1.5 text-primary-foreground"
+                : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
+            }
+          >
+            Lista
+          </Link>
+          <Link
+            href={href("calendar", stylistFilter)}
+            className={
+              view === "calendar"
+                ? "bg-primary px-3 py-1.5 text-primary-foreground"
+                : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
+            }
+          >
+            Calendario
+          </Link>
+        </div>
+        {showStylistFilter && (
+          <div className="flex flex-wrap items-center gap-1.5 font-sans text-xs">
+            <Link href={href(view, null)} className={!stylistFilter ? activePill : inactivePill}>
+              Todos
+            </Link>
+            {stylists.map((s) => (
+              <Link
+                key={s.id}
+                href={href(view, s.id)}
+                className={stylistFilter === s.id ? activePill : inactivePill}
+              >
+                {s.artist_profiles?.display_name ?? "Sin nombre"}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ export function DayGrid({
   membershipId,
   isStylist,
   showCustomerName,
+  stylistFilter,
 }: {
   slug: string;
   zone: string;
@@ -35,9 +36,10 @@ export function DayGrid({
   membershipId: string | null;
   isStylist: boolean;
   showCustomerName: boolean;
+  stylistFilter: string | null;
 }) {
   const open = appointments.filter((a) => a.status === "open");
-  const columns = stylistColumns(appointments, stylists, restrictToOwn, membershipId);
+  const columns = stylistColumns(appointments, stylists, restrictToOwn, membershipId, stylistFilter);
 
   const bounds = appointments.length
     ? {
@@ -49,7 +51,7 @@ export function DayGrid({
   const gridHeight = (bounds.endHour - bounds.startHour) * 60 * PX_PER_MIN;
   const hourMarks = Array.from({ length: bounds.endHour - bounds.startHour }, (_, i) => bounds.startHour + i);
 
-  function block(a: Appt) {
+  function block(a: Appt, stylistLabel?: string) {
     const top = (minutesInZone(a.starts_at, zone) - gridStart) * PX_PER_MIN;
     const height = Math.max(
       MIN_BLOCK_HEIGHT,
@@ -90,6 +92,7 @@ export function DayGrid({
         <p className="truncate font-sans text-xs text-foreground">
           {appointmentLine(a, showCustomerName ? (a.customers?.profiles?.full_name ?? null) : null)}
         </p>
+        {stylistLabel && <p className="truncate font-sans text-[11px] text-muted-foreground">{stylistLabel}</p>}
       </div>
     );
   }
@@ -129,7 +132,7 @@ export function DayGrid({
             backgroundImage: "repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 60px)",
           }}
         >
-          {open.map(block)}
+          {open.map((a) => block(a))}
         </div>
 
         {columns.map((c) => (
@@ -140,7 +143,7 @@ export function DayGrid({
               backgroundImage: "repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 60px)",
             }}
           >
-            {c.items.map(block)}
+            {c.items.map((a) => block(a, restrictToOwn ? undefined : c.label))}
           </div>
         ))}
       </div>

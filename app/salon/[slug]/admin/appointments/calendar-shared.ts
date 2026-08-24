@@ -64,11 +64,16 @@ export function appointmentLine(a: { services: { name: string } | null; service_
   return who ? `${who} — ${service}` : service;
 }
 
+/** `stylistFilter` narrows which stylist columns render at all (the
+ *  underlying `appointments` are already scoped server-side by the same
+ *  filter — this just keeps Day view from drawing empty columns for
+ *  everyone else once a single stylist is picked). */
 export function stylistColumns(
   appointments: Appt[],
   stylists: Stylist[],
   restrictToOwn: boolean,
-  membershipId: string | null
+  membershipId: string | null,
+  stylistFilter: string | null
 ): { key: string; label: string; avatarUrl: string | null; items: Appt[] }[] {
   if (restrictToOwn) {
     return [
@@ -80,7 +85,8 @@ export function stylistColumns(
       },
     ];
   }
-  return stylists.map((s) => ({
+  const visible = stylistFilter ? stylists.filter((s) => s.id === stylistFilter) : stylists;
+  return visible.map((s) => ({
     key: s.id,
     label: s.artist_profiles?.display_name ?? "Sin nombre",
     avatarUrl: s.artist_profiles?.headshot_url ?? null,
@@ -88,9 +94,12 @@ export function stylistColumns(
   }));
 }
 
-/** Builds the querystring for a calendar link, keeping mode fixed and only
- *  swapping the date — used by every prev/next/today/cell navigation link
- *  across day, week and month so they all stay in the same view. */
-export function calendarHref(mode: CalendarMode, dateISO: string) {
-  return `?view=calendar&mode=${mode}&date=${dateISO}`;
+/** Builds the querystring for a calendar link, keeping mode and the active
+ *  stylist filter fixed and only swapping the date — used by every
+ *  prev/next/today/cell navigation link across day, week and month so none
+ *  of them silently drop the current filter. */
+export function calendarHref(mode: CalendarMode, dateISO: string, stylistFilter?: string | null) {
+  const qp = new URLSearchParams({ view: "calendar", mode, date: dateISO });
+  if (stylistFilter) qp.set("stylist", stylistFilter);
+  return `?${qp.toString()}`;
 }

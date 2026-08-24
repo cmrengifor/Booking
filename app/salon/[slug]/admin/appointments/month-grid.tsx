@@ -10,12 +10,14 @@ export function MonthGrid({
   appointments,
   restrictToOwn,
   membershipId,
+  stylistFilter,
 }: {
   zone: string;
   monthDateISO: string;
   appointments: Appt[];
   restrictToOwn: boolean;
   membershipId: string | null;
+  stylistFilter: string | null;
 }) {
   const today = DateTime.now().setZone(zone).toISODate();
   const anchor = DateTime.fromISO(monthDateISO, { zone });
@@ -57,7 +59,7 @@ export function MonthGrid({
           return (
             <Link
               key={dateISO}
-              href={calendarHref("day", dateISO)}
+              href={calendarHref("day", dateISO, stylistFilter)}
               className={`flex min-h-24 flex-col gap-1.5 border-r border-b border-border p-2 last:border-r-0 hover:bg-muted/40 ${
                 inMonth ? "" : "opacity-40"
               }`}

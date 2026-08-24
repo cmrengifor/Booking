@@ -52,6 +52,7 @@ export function CalendarView({
   isStylist,
   showCustomerName,
   canAssign,
+  stylistFilter,
 }: {
   slug: string;
   salon: Salon;
@@ -65,6 +66,7 @@ export function CalendarView({
   isStylist: boolean;
   showCustomerName: boolean;
   canAssign: boolean;
+  stylistFilter: string | null;
 }) {
   const zone = salon.timezone;
   const nav = navDates(mode, dateISO, zone);
@@ -80,15 +82,15 @@ export function CalendarView({
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-3 font-sans text-sm">
-          <Link href={calendarHref(mode, nav.prev)} aria-label="Anterior" className="text-muted-foreground hover:text-foreground">
+          <Link href={calendarHref(mode, nav.prev, stylistFilter)} aria-label="Anterior" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="size-4" />
           </Link>
           <span className="font-medium text-foreground capitalize">{rangeLabel(mode, dateISO, zone)}</span>
-          <Link href={calendarHref(mode, nav.next)} aria-label="Siguiente" className="text-muted-foreground hover:text-foreground">
+          <Link href={calendarHref(mode, nav.next, stylistFilter)} aria-label="Siguiente" className="text-muted-foreground hover:text-foreground">
             <ChevronRight className="size-4" />
           </Link>
           {!isAtToday && (
-            <Link href={calendarHref(mode, DateTime.now().setZone(zone).toISODate()!)} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
+            <Link href={calendarHref(mode, DateTime.now().setZone(zone).toISODate()!, stylistFilter)} className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
               Volver a hoy
             </Link>
           )}
@@ -99,7 +101,7 @@ export function CalendarView({
             {(["day", "week", "month"] as const).map((m) => (
               <Link
                 key={m}
-                href={calendarHref(m, dateISO)}
+                href={calendarHref(m, dateISO, stylistFilter)}
                 className={mode === m ? "bg-primary px-3 py-1.5 text-primary-foreground" : "px-3 py-1.5 text-muted-foreground hover:text-foreground"}
               >
                 {m === "day" ? "Día" : m === "week" ? "Semana" : "Mes"}
@@ -143,6 +145,7 @@ export function CalendarView({
           membershipId={membershipId}
           isStylist={isStylist}
           showCustomerName={showCustomerName}
+          stylistFilter={stylistFilter}
         />
       )}
       {mode === "week" && (
@@ -156,6 +159,7 @@ export function CalendarView({
           membershipId={membershipId}
           isStylist={isStylist}
           showCustomerName={showCustomerName}
+          stylistFilter={stylistFilter}
         />
       )}
       {mode === "month" && (
@@ -165,6 +169,7 @@ export function CalendarView({
           appointments={appointments}
           restrictToOwn={restrictToOwn}
           membershipId={membershipId}
+          stylistFilter={stylistFilter}
         />
       )}
     </div>

@@ -25,6 +25,7 @@ export function WeekAgenda({
   membershipId,
   isStylist,
   showCustomerName,
+  stylistFilter,
 }: {
   slug: string;
   zone: string;
@@ -35,6 +36,7 @@ export function WeekAgenda({
   membershipId: string | null;
   isStylist: boolean;
   showCustomerName: boolean;
+  stylistFilter: string | null;
 }) {
   const stylistInfo = new Map(
     stylists.map((s) => [
@@ -101,7 +103,7 @@ export function WeekAgenda({
       {days.map((d) => (
         <div key={d.dateISO} className="flex flex-col gap-2 rounded-md border border-border p-3">
           <Link
-            href={calendarHref("day", d.dateISO)}
+            href={calendarHref("day", d.dateISO, stylistFilter)}
             className={`font-sans text-xs font-medium hover:text-foreground ${
               d.dateISO === today ? "text-gold" : "text-muted-foreground"
             }`}
