@@ -1,4 +1,5 @@
 import { DateTime } from "luxon";
+import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership } from "@/lib/auth/session";
 import { canViewAllAppointments } from "@/lib/auth/permissions";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { TriggerActionButton } from "./trigger-action-button";
 import { DeclineForm } from "./decline-form";
 import { CollapsibleSection } from "./collapsible-section";
+import { CalendarView } from "./calendar-view";
 import {
   acceptPending,
   complete,
@@ -21,8 +23,10 @@ import {
 
 export default async function AdminAppointmentsPage({
   params,
+  searchParams,
 }: PageProps<"/salon/[slug]/admin/appointments">) {
   const { slug } = await params;
+  const sp = await searchParams;
   const salon = await resolveSalonBySlug(slug);
   if (!salon) return null;
 
@@ -35,6 +39,61 @@ export default async function AdminAppointmentsPage({
   // rendering it, not by omitting it from the query — a Server Component's
   // fetched data never reaches the browser unless it's actually rendered).
   const restrictToOwn = !canViewAllAppointments(membership);
+  const showCustomerName = canViewAllAppointments(membership);
+  const isStylist = membership?.role === "stylist";
+  const view = sp.view === "calendar" ? "calendar" : "list";
+
+  if (view === "calendar") {
+    const today = DateTime.now().setZone(salon.timezone).toISODate()!;
+    const requestedDate = typeof sp.date === "string" ? sp.date : null;
+    const dateISO =
+      requestedDate && DateTime.fromISO(requestedDate, { zone: salon.timezone }).isValid
+        ? requestedDate
+        : today;
+    const dayStart = DateTime.fromISO(dateISO, { zone: salon.timezone }).startOf("day");
+    const dayEnd = dayStart.plus({ days: 1 });
+
+    let dayQuery = supabase
+      .from("appointments")
+      .select(
+        "id, status, starts_at, ends_at, salon_membership_id, customers(profiles(full_name)), services(name), service_variants(name)"
+      )
+      .eq("salon_id", salon.id)
+      .gte("starts_at", dayStart.toISO())
+      .lt("starts_at", dayEnd.toISO())
+      .order("starts_at");
+    if (restrictToOwn && membership) {
+      dayQuery = dayQuery.or(`status.eq.open,salon_membership_id.eq.${membership.id}`);
+    }
+
+    const [dayRes, stylistsRes] = await Promise.all([
+      dayQuery,
+      supabase
+        .from("salon_memberships")
+        .select("id, artist_profiles(display_name)")
+        .eq("salon_id", salon.id)
+        .eq("role", "stylist")
+        .eq("status", "active"),
+    ]);
+    assertNoQueryErrors([dayRes, stylistsRes], "Failed to load calendar");
+
+    return (
+      <div className="flex flex-col gap-8 p-8">
+        <AppointmentsHeader slug={slug} view={view} />
+        <CalendarView
+          slug={slug}
+          salon={salon}
+          dateISO={dateISO}
+          appointments={dayRes.data ?? []}
+          stylists={stylistsRes.data ?? []}
+          restrictToOwn={restrictToOwn}
+          membershipId={membership?.id ?? null}
+          isStylist={isStylist}
+          showCustomerName={showCustomerName}
+        />
+      </div>
+    );
+  }
 
   let activeQuery = supabase
     .from("appointments")
@@ -79,12 +138,6 @@ export default async function AdminAppointmentsPage({
   const completedList = (pastAppointments ?? []).filter((a) => a.status === "completed");
   const cancelledList = (pastAppointments ?? []).filter((a) => a.status === "cancelled");
   const noShowList = (pastAppointments ?? []).filter((a) => a.status === "no_show");
-  const isStylist = membership?.role === "stylist";
-  // Distinct from restrictToOwn/isStylist on purpose — this is "should the
-  // customer's identity render at all," which today happens to be the same
-  // population as the row-restriction above, but is a separate concern
-  // (see lib/auth/permissions.ts) that could diverge from it later.
-  const showCustomerName = canViewAllAppointments(membership);
 
   function fmt(a: { starts_at: string }) {
     return DateTime.fromISO(a.starts_at).setZone(salon!.timezone).setLocale("es").toFormat("d LLL, HH:mm");
@@ -92,12 +145,7 @@ export default async function AdminAppointmentsPage({
 
   return (
     <div className="flex flex-col gap-8 p-8">
-      <div>
-        <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">
-          Panel del salón
-        </p>
-        <h1 className="mt-2 font-heading text-3xl text-foreground">Citas</h1>
-      </div>
+      <AppointmentsHeader slug={slug} view={view} />
 
       <CollapsibleSection title={`Abiertas (${open.length})`}>
         {open.map((a) => (
@@ -293,4 +341,38 @@ export default async function AdminAppointmentsPage({
 
 function Empty() {
   return <p className="font-sans text-sm text-muted-foreground">Nada aquí.</p>;
+}
+
+function AppointmentsHeader({ slug, view }: { slug: string; view: "list" | "calendar" }) {
+  const base = `/salon/${slug}/admin/appointments`;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">Panel del salón</p>
+        <h1 className="mt-2 font-heading text-3xl text-foreground">Citas</h1>
+      </div>
+      <div className="flex overflow-hidden rounded-md border border-border font-sans text-xs">
+        <Link
+          href={base}
+          className={
+            view === "list"
+              ? "bg-primary px-3 py-1.5 text-primary-foreground"
+              : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
+          }
+        >
+          Lista
+        </Link>
+        <Link
+          href={`${base}?view=calendar`}
+          className={
+            view === "calendar"
+              ? "bg-primary px-3 py-1.5 text-primary-foreground"
+              : "px-3 py-1.5 text-muted-foreground hover:text-foreground"
+          }
+        >
+          Calendario
+        </Link>
+      </div>
+    </div>
+  );
 }
