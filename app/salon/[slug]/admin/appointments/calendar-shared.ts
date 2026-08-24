@@ -103,3 +103,24 @@ export function calendarHref(mode: CalendarMode, dateISO: string, stylistFilter?
   if (stylistFilter) qp.set("stylist", stylistFilter);
   return `?${qp.toString()}`;
 }
+
+/** Builds a link to the appointments page itself (Lista or Calendario),
+ *  keeping the active stylist filter and, for Calendario, the current
+ *  mode/date. Plain data in, plain string out — safe to import from both a
+ *  Server Component (the Lista/Calendario toggle) and a Client Component
+ *  (the stylist combobox), since a function like this can cross that
+ *  boundary as a shared import but never as a prop. */
+export function appointmentsHref(
+  base: string,
+  params: { view: "list" | "calendar"; mode: CalendarMode; dateISO: string; stylist: string | null }
+) {
+  const qp = new URLSearchParams();
+  if (params.view === "calendar") {
+    qp.set("view", "calendar");
+    qp.set("mode", params.mode);
+    qp.set("date", params.dateISO);
+  }
+  if (params.stylist) qp.set("stylist", params.stylist);
+  const qs = qp.toString();
+  return qs ? `${base}?${qs}` : base;
+}

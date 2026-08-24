@@ -10,7 +10,8 @@ import { TriggerActionButton } from "./trigger-action-button";
 import { DeclineForm } from "./decline-form";
 import { CollapsibleSection } from "./collapsible-section";
 import { CalendarView } from "./calendar-view";
-import { type Stylist, type CalendarMode } from "./calendar-shared";
+import { StylistFilterCombobox } from "./stylist-filter-combobox";
+import { type Stylist, type CalendarMode, appointmentsHref } from "./calendar-shared";
 import {
   acceptPending,
   complete,
@@ -411,21 +412,6 @@ function AppointmentsHeader({
 }) {
   const base = `/salon/${slug}/admin/appointments`;
 
-  function href(nextView: "list" | "calendar", stylistId: string | null) {
-    const qp = new URLSearchParams();
-    if (nextView === "calendar") {
-      qp.set("view", "calendar");
-      qp.set("mode", mode);
-      qp.set("date", dateISO);
-    }
-    if (stylistId) qp.set("stylist", stylistId);
-    const qs = qp.toString();
-    return qs ? `${base}?${qs}` : base;
-  }
-
-  const activePill = "rounded-full bg-primary px-3 py-1 text-primary-foreground";
-  const inactivePill = "rounded-full border border-border px-3 py-1 text-muted-foreground hover:text-foreground";
-
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
@@ -435,7 +421,7 @@ function AppointmentsHeader({
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex overflow-hidden rounded-md border border-border font-sans text-xs">
           <Link
-            href={href("list", stylistFilter)}
+            href={appointmentsHref(base, { view: "list", mode, dateISO, stylist: stylistFilter })}
             className={
               view === "list"
                 ? "bg-primary px-3 py-1.5 text-primary-foreground"
@@ -445,7 +431,7 @@ function AppointmentsHeader({
             Lista
           </Link>
           <Link
-            href={href("calendar", stylistFilter)}
+            href={appointmentsHref(base, { view: "calendar", mode, dateISO, stylist: stylistFilter })}
             className={
               view === "calendar"
                 ? "bg-primary px-3 py-1.5 text-primary-foreground"
@@ -456,20 +442,14 @@ function AppointmentsHeader({
           </Link>
         </div>
         {showStylistFilter && (
-          <div className="flex flex-wrap items-center gap-1.5 font-sans text-xs">
-            <Link href={href(view, null)} className={!stylistFilter ? activePill : inactivePill}>
-              Todos
-            </Link>
-            {stylists.map((s) => (
-              <Link
-                key={s.id}
-                href={href(view, s.id)}
-                className={stylistFilter === s.id ? activePill : inactivePill}
-              >
-                {s.artist_profiles?.display_name ?? "Sin nombre"}
-              </Link>
-            ))}
-          </div>
+          <StylistFilterCombobox
+            base={base}
+            view={view}
+            mode={mode}
+            dateISO={dateISO}
+            stylists={stylists}
+            stylistFilter={stylistFilter}
+          />
         )}
       </div>
     </div>

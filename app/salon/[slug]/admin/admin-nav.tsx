@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Bell, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/database";
 import { cn } from "@/lib/utils";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 const NAV_GROUPS = [
   {
@@ -128,12 +129,14 @@ export function AdminNav({
 }
 
 /**
- * Hand-rolled click-to-open dropdown, not shadcn's Menubar/DropdownMenu —
+ * Hand-rolled click-to-open trigger, not shadcn's Menubar/DropdownMenu —
  * @base-ui/react 1.7.0's Menu family doesn't open on click in this project's
  * React 19.2.8 / Next 16 Turbopack stack (verified against the library's own
  * docs example, in both dev and production builds; onOpenChange never
  * fires). Same pattern site-header.tsx's "Contáctanos" already uses in
- * production. Styled to match Menubar's visual language regardless.
+ * production. The flyout content itself is shadcn's Command (cmdk-based,
+ * not @base-ui/react, so it isn't subject to that bug) rather than a plain
+ * list — search-filterable and keyboard-navigable for free.
  */
 function NavMenu({
   label,
@@ -150,6 +153,7 @@ function NavMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     if (!open) return;
@@ -178,24 +182,28 @@ function NavMenu({
         {label}
       </button>
       {open && (
-        <div
-          role="menu"
-          className="absolute top-full left-0 z-50 mt-1.5 min-w-36 rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10"
-        >
-          {items.map((item) => (
-            <Link
-              key={item.label}
-              href={`${base}${item.href}`}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground",
-                isItemActive(item.href) ? "font-medium text-foreground" : "text-foreground/90"
-              )}
-            >
-              {item.label}
-            </Link>
-          ))}
+        <div className="absolute top-full left-0 z-50 mt-1.5">
+          <Command className="w-48 shadow-md ring-1 ring-foreground/10">
+            <CommandInput placeholder={`Buscar en ${label}…`} />
+            <CommandList>
+              <CommandEmpty>Sin resultados.</CommandEmpty>
+              <CommandGroup>
+                {items.map((item) => (
+                  <CommandItem
+                    key={item.label}
+                    value={item.label}
+                    className={cn(isItemActive(item.href) && "font-medium text-foreground")}
+                    onSelect={() => {
+                      setOpen(false);
+                      router.push(`${base}${item.href}`);
+                    }}
+                  >
+                    {item.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
         </div>
       )}
     </div>
