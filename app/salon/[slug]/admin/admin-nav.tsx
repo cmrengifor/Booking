@@ -1,14 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Bell, ExternalLink } from "lucide-react";
+import { Bell, ExternalLink, SearchIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Tables } from "@/types/database";
 import { cn } from "@/lib/utils";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 
 const NAV_GROUPS = [
   {
@@ -60,8 +68,10 @@ export function AdminNav({
   userId: string;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const base = `/salon/${slug}/admin`;
   const [hasUnread, setHasUnread] = useState(unread > 0);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
     const supabase = createClient();
@@ -90,6 +100,20 @@ export function AdminNav({
     };
   }, [userId]);
 
+  // Global shortcut, same convention as Linear/Vercel's command bars — cmdk
+  // itself only handles keys while its own input is focused, so opening the
+  // palette from anywhere needs a page-level listener.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   function isItemActive(href: string) {
     const full = `${base}${href}`;
     return href === "" ? pathname === base : pathname.startsWith(full);
@@ -97,18 +121,44 @@ export function AdminNav({
 
   return (
     <nav className="flex items-center gap-3 border-b border-border px-8 py-4 font-sans text-sm">
-      <div className="flex h-8 items-center gap-0.5 rounded-lg border border-border p-[3px]">
-        {NAV_GROUPS.map((group) => (
-          <NavMenu
-            key={group.label}
-            label={group.label}
-            items={group.items}
-            base={base}
-            active={group.items.some((item) => isItemActive(item.href))}
-            isItemActive={isItemActive}
-          />
-        ))}
-      </div>
+      <button
+        type="button"
+        onClick={() => setPaletteOpen(true)}
+        className="flex h-8 w-56 items-center gap-2 rounded-lg border border-border px-2.5 text-muted-foreground hover:text-foreground"
+      >
+        <SearchIcon className="size-3.5 shrink-0" />
+        <span className="flex-1 text-left">Ir a…</span>
+        <kbd className="rounded border border-border bg-muted px-1 py-px font-mono text-[10px] text-muted-foreground">
+          ⌘K
+        </kbd>
+      </button>
+
+      <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
+        <Command>
+          <CommandInput placeholder="Buscar página…" />
+          <CommandList>
+            <CommandEmpty>Sin resultados.</CommandEmpty>
+            {NAV_GROUPS.map((group) => (
+              <CommandGroup key={group.label} heading={group.label}>
+                {group.items.map((item) => (
+                  <CommandItem
+                    key={item.label}
+                    value={item.label}
+                    className={cn(isItemActive(item.href) && "font-medium text-foreground")}
+                    onSelect={() => {
+                      setPaletteOpen(false);
+                      router.push(`${base}${item.href}`);
+                    }}
+                  >
+                    {item.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            ))}
+          </CommandList>
+        </Command>
+      </CommandDialog>
+
       <Link
         href={`/salon/${slug}`}
         className="ml-auto flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
@@ -125,87 +175,5 @@ export function AdminNav({
         {hasUnread && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-red-500" />}
       </Link>
     </nav>
-  );
-}
-
-/**
- * Hand-rolled click-to-open trigger, not shadcn's Menubar/DropdownMenu —
- * @base-ui/react 1.7.0's Menu family doesn't open on click in this project's
- * React 19.2.8 / Next 16 Turbopack stack (verified against the library's own
- * docs example, in both dev and production builds; onOpenChange never
- * fires). Same pattern site-header.tsx's "Contáctanos" already uses in
- * production. The flyout content itself is shadcn's Command (cmdk-based,
- * not @base-ui/react, so it isn't subject to that bug) rather than a plain
- * list — search-filterable and keyboard-navigable for free.
- */
-function NavMenu({
-  label,
-  items,
-  base,
-  active,
-  isItemActive,
-}: {
-  label: string;
-  items: { href: string; label: string }[];
-  base: string;
-  active: boolean;
-  isItemActive: (href: string) => boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!open) return;
-    function onClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", onClickOutside);
-    return () => document.removeEventListener("mousedown", onClickOutside);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className={cn(
-          "flex items-center rounded-sm px-1.5 py-[2px] text-sm font-medium outline-none select-none hover:bg-muted",
-          open && "bg-muted",
-          active ? "text-foreground" : "text-muted-foreground"
-        )}
-      >
-        {label}
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 z-50 mt-1.5">
-          <Command className="w-48 shadow-md ring-1 ring-foreground/10">
-            <CommandInput placeholder={`Buscar en ${label}…`} />
-            <CommandList>
-              <CommandEmpty>Sin resultados.</CommandEmpty>
-              <CommandGroup>
-                {items.map((item) => (
-                  <CommandItem
-                    key={item.label}
-                    value={item.label}
-                    className={cn(isItemActive(item.href) && "font-medium text-foreground")}
-                    onSelect={() => {
-                      setOpen(false);
-                      router.push(`${base}${item.href}`);
-                    }}
-                  >
-                    {item.label}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
-      )}
-    </div>
   );
 }
