@@ -17,6 +17,18 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar";
 
 const NAV_GROUPS = [
   {
@@ -58,12 +70,14 @@ const TYPE_LABELS: Record<string, string> = {
   appointment_assigned: "Nueva solicitud",
 };
 
-export function AdminNav({
+export function AdminSidebar({
   slug,
+  salonName,
   unread,
   userId,
 }: {
   slug: string;
+  salonName: string;
   unread: number;
   userId: string;
 }) {
@@ -120,19 +134,72 @@ export function AdminNav({
   }
 
   return (
-    <nav className="flex items-center gap-3 border-b border-border px-8 py-4 font-sans text-sm">
-      <button
-        type="button"
-        onClick={() => setPaletteOpen(true)}
-        className="flex h-8 w-56 items-center gap-2 rounded-lg border border-border px-2.5 text-muted-foreground hover:text-foreground"
-      >
-        <SearchIcon className="size-3.5 shrink-0" />
-        <span className="flex-1 text-left">Ir a…</span>
-        <kbd className="rounded border border-border bg-muted px-1 py-px font-mono text-[10px] text-muted-foreground">
-          ⌘K
-        </kbd>
-      </button>
+    <>
+      <Sidebar collapsible="offcanvas">
+        <SidebarHeader className="gap-3 px-3 py-3">
+          <Link href={base} className="px-1 font-heading text-lg text-sidebar-foreground italic">
+            {salonName}
+          </Link>
+          <button
+            type="button"
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-8 items-center gap-2 rounded-lg border border-sidebar-border px-2.5 text-sm text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          >
+            <SearchIcon className="size-3.5 shrink-0" />
+            <span className="flex-1 text-left">Ir a…</span>
+            <kbd className="rounded border border-sidebar-border bg-sidebar-accent px-1 py-px font-mono text-[10px] text-sidebar-foreground/70">
+              ⌘K
+            </kbd>
+          </button>
+        </SidebarHeader>
 
+        <SidebarContent>
+          {NAV_GROUPS.map((group) => (
+            <SidebarGroup key={group.label}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {group.items.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        isActive={isItemActive(item.href)}
+                        render={<Link href={`${base}${item.href}`} />}
+                      >
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </SidebarContent>
+
+        <SidebarFooter className="gap-0">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton render={<Link href={`/salon/${slug}`} />}>
+                <ExternalLink />
+                Ver sitio
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton render={<Link href={`/salon/${slug}/notifications`} />}>
+                <Bell />
+                Notificaciones
+                {hasUnread && <span className="ml-auto size-2 shrink-0 rounded-full bg-red-500" />}
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
+
+      {/* Rendered as a sibling, not inside <Sidebar> — on mobile, Sidebar's
+          children get relocated into its own Sheet (itself a @base-ui/react
+          Dialog), and nesting CommandDialog's Dialog inside that one crashed
+          cmdk's internal store ("Cannot read properties of undefined
+          (reading 'subscribe')") the moment the Sheet opened. Keeping this
+          outside Sidebar entirely sidesteps nested-Dialog-in-Dialog. */}
       <CommandDialog open={paletteOpen} onOpenChange={setPaletteOpen}>
         <Command>
           <CommandInput placeholder="Buscar página…" />
@@ -158,22 +225,6 @@ export function AdminNav({
           </CommandList>
         </Command>
       </CommandDialog>
-
-      <Link
-        href={`/salon/${slug}`}
-        className="ml-auto flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
-      >
-        <ExternalLink className="size-4" />
-        Ver sitio
-      </Link>
-      <Link
-        href={`/salon/${slug}/notifications`}
-        aria-label="Notificaciones"
-        className="relative text-muted-foreground hover:text-foreground"
-      >
-        <Bell className="size-5" />
-        {hasUnread && <span className="absolute -right-1 -top-1 size-2.5 rounded-full bg-red-500" />}
-      </Link>
-    </nav>
+    </>
   );
 }

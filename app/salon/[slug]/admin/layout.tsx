@@ -3,7 +3,8 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser, getSalonMembership } from "@/lib/auth/session";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
-import { AdminNav } from "./admin-nav";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { AdminSidebar } from "./admin-sidebar";
 
 export default async function AdminLayout({
   children,
@@ -27,10 +28,15 @@ export default async function AdminLayout({
     .is("read_at", null);
 
   return (
-    <div className="flex flex-1 flex-col">
+    <SidebarProvider className="min-h-0 flex-1">
       <Toaster position="top-right" richColors />
-      <AdminNav slug={slug} unread={unread ?? 0} userId={user.id} />
-      {children}
-    </div>
+      <AdminSidebar slug={slug} salonName={salon.name} unread={unread ?? 0} userId={user.id} />
+      <SidebarInset>
+        <header className="flex items-center gap-2 border-b border-border px-4 py-3">
+          <SidebarTrigger />
+        </header>
+        {children}
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
