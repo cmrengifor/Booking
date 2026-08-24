@@ -5,6 +5,7 @@ import type { Salon } from "@/lib/tenant/resolve-salon";
 import { DayGrid } from "./day-grid";
 import { WeekAgenda } from "./week-agenda";
 import { MonthGrid } from "./month-grid";
+import { MonthPicker } from "./month-picker";
 import { AssignOpenPanel } from "./assign-open-panel";
 import { type Appt, type Stylist, type OpenAppt, type CalendarMode, calendarHref } from "./calendar-shared";
 
@@ -23,20 +24,20 @@ function navDates(mode: CalendarMode, dateISO: string, zone: string) {
   };
 }
 
-function rangeLabel(mode: CalendarMode, dateISO: string, zone: string) {
+/** Month mode doesn't use this — it renders MonthPicker's own dropdowns
+ *  instead, since "which month" is exactly what that control lets you jump
+ *  to directly rather than only read. */
+function rangeLabel(mode: "day" | "week", dateISO: string, zone: string) {
   const anchor = DateTime.fromISO(dateISO, { zone }).setLocale("es");
   if (mode === "day") {
     const isToday = dateISO === DateTime.now().setZone(zone).toISODate();
     return `${isToday ? "Hoy · " : ""}${anchor.toFormat("d 'de' LLLL")}`;
   }
-  if (mode === "week") {
-    const start = anchor.startOf("week");
-    const end = start.plus({ days: 6 });
-    return start.month === end.month
-      ? `${start.toFormat("d")} – ${end.toFormat("d 'de' LLLL")}`
-      : `${start.toFormat("d LLL")} – ${end.toFormat("d LLL")}`;
-  }
-  return anchor.toFormat("LLLL yyyy");
+  const start = anchor.startOf("week");
+  const end = start.plus({ days: 6 });
+  return start.month === end.month
+    ? `${start.toFormat("d")} – ${end.toFormat("d 'de' LLLL")}`
+    : `${start.toFormat("d LLL")} – ${end.toFormat("d LLL")}`;
 }
 
 export function CalendarView({
@@ -85,7 +86,11 @@ export function CalendarView({
           <Link href={calendarHref(mode, nav.prev, stylistFilter)} aria-label="Anterior" className="text-muted-foreground hover:text-foreground">
             <ChevronLeft className="size-4" />
           </Link>
-          <span className="font-medium text-foreground capitalize">{rangeLabel(mode, dateISO, zone)}</span>
+          {mode === "month" ? (
+            <MonthPicker dateISO={dateISO} zone={zone} stylistFilter={stylistFilter} />
+          ) : (
+            <span className="font-medium text-foreground capitalize">{rangeLabel(mode, dateISO, zone)}</span>
+          )}
           <Link href={calendarHref(mode, nav.next, stylistFilter)} aria-label="Siguiente" className="text-muted-foreground hover:text-foreground">
             <ChevronRight className="size-4" />
           </Link>
