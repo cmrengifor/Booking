@@ -80,7 +80,7 @@ export default async function AdminAppointmentsPage({
       rangeQuery,
       supabase
         .from("salon_memberships")
-        .select("id, artist_profiles(display_name)")
+        .select("id, artist_profiles(display_name, headshot_url)")
         .eq("salon_id", salon.id)
         .eq("role", "stylist")
         .eq("status", "active"),

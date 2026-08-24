@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { takeOpenAppointment } from "./actions";
+import { StylistAvatar } from "./stylist-avatar";
 import {
   type Appt,
   type Stylist,
@@ -35,7 +36,12 @@ export function WeekAgenda({
   isStylist: boolean;
   showCustomerName: boolean;
 }) {
-  const stylistName = new Map(stylists.map((s) => [s.id, s.artist_profiles?.display_name ?? "Sin nombre"]));
+  const stylistInfo = new Map(
+    stylists.map((s) => [
+      s.id,
+      { name: s.artist_profiles?.display_name ?? "Sin nombre", avatarUrl: s.artist_profiles?.headshot_url ?? null },
+    ])
+  );
   const today = DateTime.now().setZone(zone).toISODate();
   const weekStart = DateTime.fromISO(weekStartISO, { zone });
 
@@ -71,7 +77,7 @@ export function WeekAgenda({
       );
     }
 
-    const stylist = a.salon_membership_id ? stylistName.get(a.salon_membership_id) : null;
+    const stylist = a.salon_membership_id ? stylistInfo.get(a.salon_membership_id) : null;
     return (
       <div key={a.id} className={`rounded-md px-2 py-1.5 ${STATUS_CLASS[a.status] ?? "bg-muted text-muted-foreground"}`}>
         <p className="font-sans text-[11px] font-medium">
@@ -80,7 +86,12 @@ export function WeekAgenda({
         <p className="font-sans text-xs text-foreground">
           {appointmentLine(a, showCustomerName ? (a.customers?.profiles?.full_name ?? null) : null)}
         </p>
-        {!restrictToOwn && stylist && <p className="mt-0.5 font-sans text-[11px] text-muted-foreground">{stylist}</p>}
+        {!restrictToOwn && stylist && (
+          <p className="mt-0.5 flex items-center gap-1 font-sans text-[11px] text-muted-foreground">
+            <StylistAvatar name={stylist.name} url={stylist.avatarUrl} size={14} />
+            {stylist.name}
+          </p>
+        )}
       </div>
     );
   }

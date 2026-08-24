@@ -11,7 +11,10 @@ export type Appt = {
   service_variants: { name: string } | null;
 };
 
-export type Stylist = { id: string; artist_profiles: { display_name: string } | null };
+export type Stylist = {
+  id: string;
+  artist_profiles: { display_name: string; headshot_url: string | null } | null;
+};
 
 export type OpenAppt = {
   id: string;
@@ -66,12 +69,13 @@ export function stylistColumns(
   stylists: Stylist[],
   restrictToOwn: boolean,
   membershipId: string | null
-): { key: string; label: string; items: Appt[] }[] {
+): { key: string; label: string; avatarUrl: string | null; items: Appt[] }[] {
   if (restrictToOwn) {
     return [
       {
         key: "own",
         label: "Mis citas",
+        avatarUrl: null,
         items: appointments.filter((a) => a.salon_membership_id === membershipId),
       },
     ];
@@ -79,6 +83,7 @@ export function stylistColumns(
   return stylists.map((s) => ({
     key: s.id,
     label: s.artist_profiles?.display_name ?? "Sin nombre",
+    avatarUrl: s.artist_profiles?.headshot_url ?? null,
     items: appointments.filter((a) => a.salon_membership_id === s.id),
   }));
 }

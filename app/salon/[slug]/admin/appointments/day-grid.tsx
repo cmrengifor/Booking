@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { takeOpenAppointment } from "./actions";
+import { StylistAvatar } from "./stylist-avatar";
 import {
   type Appt,
   type Stylist,
@@ -99,8 +100,12 @@ export function DayGrid({
         <div className="w-14 shrink-0 border-r border-border" />
         <div className="flex-1 border-r border-border px-3 py-2 font-sans text-xs font-medium text-foreground">Abiertas</div>
         {columns.map((c) => (
-          <div key={c.key} className="flex-1 border-r border-border px-3 py-2 font-sans text-xs font-medium text-foreground last:border-r-0">
-            {c.label}
+          <div
+            key={c.key}
+            className="flex flex-1 items-center gap-2 border-r border-border px-3 py-2 font-sans text-xs font-medium text-foreground last:border-r-0"
+          >
+            <StylistAvatar name={c.label} url={c.avatarUrl} size={22} />
+            <span className="truncate">{c.label}</span>
           </div>
         ))}
       </div>
