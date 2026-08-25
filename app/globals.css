@@ -8,6 +8,8 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-gold: var(--gold);
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
   --font-sans: var(--font-inter);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-fraunces);
@@ -53,6 +55,11 @@
   --gold: #b4903f;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  /* Fixed dark band — deliberately does NOT flip in .dark below, for
+     sections (portfolio) styled as a bold contrast block regardless of
+     the site's own light/dark theme. */
+  --ink: oklch(0.145 0 0);
+  --ink-foreground: oklch(0.985 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);

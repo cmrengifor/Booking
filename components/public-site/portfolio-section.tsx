@@ -38,7 +38,7 @@ export function PortfolioSection({
   }));
 
   return (
-    <section id="portfolio" className="bg-foreground py-24 text-background sm:py-32">
+    <section id="portfolio" className="bg-ink py-24 text-ink-foreground sm:py-32">
       <div className="mx-auto flex max-w-5xl flex-col gap-20 px-6 sm:px-10">
         <h2 className="font-heading text-4xl italic sm:text-5xl">Portfolio</h2>
       </div>
@@ -64,14 +64,14 @@ export function PortfolioSection({
 
           return (
             <Reveal key={artist.id} className="flex flex-col gap-6">
-              <h3 className="font-heading text-2xl text-background/90">{artist.display_name}</h3>
+              <h3 className="font-heading text-2xl text-ink-foreground/90">{artist.display_name}</h3>
               <ImageCarousel images={obras} />
               {review && (
                 <div className="max-w-lg">
                   <p className="font-heading text-xl leading-snug italic">
                     &ldquo;{review.comment}&rdquo;
                   </p>
-                  <p className="mt-2 font-sans text-sm text-background/60">
+                  <p className="mt-2 font-sans text-sm text-ink-foreground/60">
                     {"★".repeat(review.rating)}
                     {review.services?.name && ` — ${review.services.name}`}
                   </p>
