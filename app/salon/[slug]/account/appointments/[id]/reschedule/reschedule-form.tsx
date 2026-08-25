@@ -46,7 +46,7 @@ export function RescheduleForm({
         salonMembershipId: appointment.salon_membership_id,
         date: value,
       });
-      setSlots(result);
+      setSlots(result.availableSlots);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo cargar disponibilidad.");
     } finally {

@@ -3,6 +3,7 @@ import { DateTime } from "luxon";
 import {
   computeAnyArtistSlots,
   computeArtistSlots,
+  computeSalonSlots,
   dayOfWeekInZone,
   freeIntervalsForArtistOnDate,
   resolveEffectiveSlot,
@@ -183,6 +184,60 @@ describe("slotStartsFromFreeIntervals / computeArtistSlots", () => {
       slot: { durationMinutes: 600, bufferMinutes: 0 },
     });
     expect(slots).toEqual([]);
+  });
+});
+
+describe("computeSalonSlots", () => {
+  it("fills the whole salon-hours grid, ignoring artist hours/breaks/busy entirely", () => {
+    const slots = computeSalonSlots({
+      date: TUESDAY,
+      timezone: TZ,
+      salonHours, // 09:00-18:00
+      slot: { durationMinutes: 45, bufferMinutes: 10 }, // same 55-min slot as above
+      granularityMinutes: 15,
+    });
+
+    const hours = slots.map((s) => DateTime.fromISO(s).setZone(TZ).toFormat("HH:mm"));
+    // Unlike computeArtistSlots with artistHoursWithBreak, 13:00 is a real
+    // grid slot here — there's no artist break to know about.
+    expect(hours).toContain("13:00");
+    expect(hours[0]).toBe("09:00");
+  });
+
+  it("returns no slots on a day the salon isn't open", () => {
+    const slots = computeSalonSlots({
+      date: SUNDAY,
+      timezone: TZ,
+      salonHours, // no Sunday row
+      slot: { durationMinutes: 30, bufferMinutes: 0 },
+    });
+    expect(slots).toEqual([]);
+  });
+
+  it("is a superset of what any artist can actually offer that day", () => {
+    const salonGrid = new Set(
+      computeSalonSlots({
+        date: TUESDAY,
+        timezone: TZ,
+        salonHours,
+        slot: { durationMinutes: 45, bufferMinutes: 10 },
+        granularityMinutes: 15,
+      })
+    );
+    const artistSlots = computeArtistSlots({
+      date: TUESDAY,
+      timezone: TZ,
+      salonHours,
+      artistHours: artistHoursWithBreak,
+      timeOff: [],
+      busy: [],
+      slot: { durationMinutes: 45, bufferMinutes: 10 },
+      granularityMinutes: 15,
+    });
+
+    for (const s of artistSlots) {
+      expect(salonGrid.has(s)).toBe(true);
+    }
   });
 });
 

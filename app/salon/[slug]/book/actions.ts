@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import {
   computeAnyArtistSlots,
   computeArtistSlots,
+  computeSalonSlots,
   resolveEffectiveSlot,
 } from "@/lib/domain/availability";
 
@@ -80,16 +81,28 @@ export async function getAvailableSlots(params: {
     };
   }
 
+  // The full salon-hours grid — the fixed set of slot positions the time
+  // picker renders regardless of who's available, so it can show the ones
+  // nobody can take right now as visibly unavailable instead of just
+  // omitting them.
+  const allSlots = computeSalonSlots({
+    date: params.date,
+    timezone: params.timezone,
+    salonHours: salonHours ?? [],
+    slot,
+  });
+
   if (params.artistPreference === "specific") {
     if (!params.salonMembershipId) throw new Error("Artist required.");
     const candidate = await fetchCandidate(params.salonMembershipId);
-    return computeArtistSlots({
+    const availableSlots = computeArtistSlots({
       date: params.date,
       timezone: params.timezone,
       salonHours: salonHours ?? [],
       ...candidate,
       slot,
     });
+    return { allSlots, availableSlots };
   }
 
   const { data: artists } = await supabase
@@ -103,12 +116,13 @@ export async function getAvailableSlots(params: {
     (artists ?? []).map((a) => fetchCandidate(a.salon_membership_id))
   );
 
-  return computeAnyArtistSlots(candidates, {
+  const availableSlots = computeAnyArtistSlots(candidates, {
     date: params.date,
     timezone: params.timezone,
     salonHours: salonHours ?? [],
     slot,
   });
+  return { allSlots, availableSlots };
 }
 
 /** Logged-in booking now requires a phone on file — most existing accounts

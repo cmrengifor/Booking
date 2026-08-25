@@ -121,7 +121,8 @@ export function BookingWizardContent({
   const [homeService, setHomeService] = useState(false);
   const [homeAddress, setHomeAddress] = useState("");
   const [homeZoneId, setHomeZoneId] = useState<string | null>(null);
-  const [slots, setSlots] = useState<string[]>([]);
+  const [allSlots, setAllSlots] = useState<string[]>([]);
+  const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -178,7 +179,10 @@ export function BookingWizardContent({
       salonMembershipId: preference === "specific" ? artistId : null,
       date,
     })
-      .then(setSlots)
+      .then((result) => {
+        setAllSlots(result.allSlots);
+        setAvailableSlots(result.availableSlots);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoadingSlots(false));
   }, [locationId, serviceId, variantId, preference, artistId, date, salon.id, salon.timezone]);
@@ -562,7 +566,8 @@ export function BookingWizardContent({
             {!loadingSlots && !error && (
               <TimePicker
                 timezone={salon.timezone}
-                slots={slots}
+                allSlots={allSlots}
+                availableSlots={availableSlots}
                 selected={startsAt}
                 onSelect={(iso) => setParams({ startsAt: iso })}
               />

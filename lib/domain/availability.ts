@@ -156,6 +156,40 @@ export function slotStartsFromFreeIntervals(
   return starts;
 }
 
+/**
+ * Every candidate slot start within the salon's own opening hours for the
+ * day — ignoring artist hours, breaks, time off, and existing bookings
+ * entirely. This is deliberately the salon-only interval, not any artist's
+ * free time: it's the fixed grid the UI renders (so "9:00, 9:15, 9:30…"
+ * stays in the same place whichever artist is picked), against which
+ * `computeArtistSlots`/`computeAnyArtistSlots` results are then checked
+ * per slot to mark it available or not.
+ */
+export function computeSalonSlots(params: {
+  date: string;
+  timezone: string;
+  salonHours: SalonHoursRow[];
+  slot: EffectiveSlot;
+  granularityMinutes?: number;
+}): string[] {
+  const { date, timezone, salonHours, slot, granularityMinutes } = params;
+  const dow = dayOfWeekInZone(date, timezone);
+  const salonRow = salonHours.find((h) => h.day_of_week === dow);
+  if (!salonRow) return [];
+
+  const salonInterval = Interval.fromDateTimes(
+    timeOnDate(date, salonRow.open_time, timezone),
+    timeOnDate(date, salonRow.close_time, timezone)
+  );
+  if (!salonInterval.isValid) return [];
+
+  return slotStartsFromFreeIntervals(
+    [salonInterval],
+    slot.durationMinutes + slot.bufferMinutes,
+    granularityMinutes ?? 15
+  );
+}
+
 export function computeArtistSlots(params: {
   date: string;
   timezone: string;
