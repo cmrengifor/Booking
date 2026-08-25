@@ -172,11 +172,22 @@
   }
 }
 
+@keyframes motion-column-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .motion-row-track {
+  .motion-row-track,
+  .motion-column-track {
     animation: none !important;
   }
-  .motion-row-track > * {
+  .motion-row-track > *,
+  .motion-column-track > * {
     animation: none !important;
     opacity: 1 !important;
   }

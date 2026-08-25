@@ -98,14 +98,14 @@ export default async function SalonHomePage({
         variants={variants ?? []}
         portfolio={portfolio ?? []}
       />
-      <ArtistsSection slug={slug} artists={artists ?? []} />
+      <ArtistsSection artists={artists ?? []} />
       <PortfolioSection
         items={portfolio ?? []}
         artists={artists ?? []}
         reviews={reviews ?? []}
       />
       {brands?.length ? <BrandsSection brands={brands} /> : null}
-      {reviews?.length ? <ReviewsSection reviews={reviews} /> : null}
+      {reviews?.length ? <ReviewsSection slug={slug} reviews={reviews} /> : null}
       {faqs?.length ? <FaqSection faqs={faqs} /> : null}
       <SiteFooter salon={salon} />
     </div>
