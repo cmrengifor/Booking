@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
 import { SiteFooter } from "@/components/public-site/site-footer";
+import { MotionRow } from "@/components/public-site/motion-row";
 import { cn } from "@/lib/utils";
 
 const RANDOM_COUNT = 6;
@@ -56,9 +57,20 @@ export default async function PortfolioPage({
         .slice(0, PER_ARTIST_COUNT)
     : shuffle(items ?? []).slice(0, RANDOM_COUNT);
 
+  const reel = (items ?? []).slice(0, 16).map((i) => ({
+    id: i.id,
+    src: i.image_url,
+    alt: i.title ?? "Trabajo del salón",
+  }));
+
   return (
     <div className="flex flex-1 flex-col">
       <SiteHeader salon={salon} isStaff={!!membership} isPlatformAdmin={platformAdmin} />
+      {reel.length > 0 && (
+        <div className="pt-10 sm:pt-14">
+          <MotionRow items={reel} cardWidth={240} gap={16} cornerRadius={2} />
+        </div>
+      )}
       <div className="px-6 py-16 sm:px-10 sm:py-24">
         <div className="mx-auto max-w-6xl">
           <h1 className="font-heading text-4xl italic text-foreground sm:text-5xl">
