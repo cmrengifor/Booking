@@ -5,13 +5,20 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { DateTime } from "luxon";
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronLeft, Home } from "lucide-react";
+import { ChevronLeft, XIcon } from "lucide-react";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 import {
   Questionnaire,
   QuestionnaireItem,
@@ -113,6 +120,16 @@ function BookingWizardInner({
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  // The booking flow now presents as a drawer over the salon's page rather
+  // than a bare full-page wizard. It opens the instant this route mounts;
+  // closing it (X, swipe-down, outside click, Escape) waits for the close
+  // animation to finish before navigating home, so the slide-down isn't cut
+  // short by an immediate route change.
+  const [drawerOpen, setDrawerOpen] = useState(true);
+  function handleDrawerOpenChangeComplete(nextOpen: boolean) {
+    if (!nextOpen) router.push(`/salon/${salon.slug}`);
+  }
 
   useEffect(() => {
     const supabase = createClient();
@@ -233,19 +250,38 @@ function BookingWizardInner({
 
   if (done) {
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">
-          Reserva enviada
-        </p>
-        <h1 className="font-heading text-3xl text-foreground">¡Listo!</h1>
-        <p className="max-w-md font-sans text-sm text-muted-foreground">
-          Te confirmaremos por correo a {userEmail}. Revisa el estado de tu cita en tu
-          cuenta.
-        </p>
-        <Link href={`/salon/${salon.slug}/account`} className={buttonVariants({ className: "mt-2" })}>
-          Ir a mi cuenta
-        </Link>
-      </div>
+      <Drawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onOpenChangeComplete={handleDrawerOpenChangeComplete}
+        swipeDirection="down"
+        showSwipeHandle
+      >
+        <DrawerContent>
+          <DrawerHeader className="flex-row items-center justify-between">
+            <DrawerTitle>{salon.name}</DrawerTitle>
+            <DrawerClose
+              className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+            >
+              <XIcon />
+              <span className="sr-only">Cerrar</span>
+            </DrawerClose>
+          </DrawerHeader>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-y-auto px-6 pb-10 text-center">
+            <p className="font-sans text-xs tracking-[0.3em] text-gold uppercase">
+              Reserva enviada
+            </p>
+            <h1 className="font-heading text-3xl text-foreground">¡Listo!</h1>
+            <p className="max-w-md font-sans text-sm text-muted-foreground">
+              Te confirmaremos por correo a {userEmail}. Revisa el estado de tu cita en tu
+              cuenta.
+            </p>
+            <Link href={`/salon/${salon.slug}/account`} className={buttonVariants({ className: "mt-2" })}>
+              Ir a mi cuenta
+            </Link>
+          </div>
+        </DrawerContent>
+      </Drawer>
     );
   }
 
@@ -317,31 +353,34 @@ function BookingWizardInner({
     : null;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 p-8">
-      <Link
-        href={`/salon/${salon.slug}`}
-        className="self-start font-heading text-sm tracking-wide text-foreground hover:text-gold"
-      >
-        {salon.name}
-      </Link>
-      <div className="flex items-center justify-between gap-4">
-        <button
-          type="button"
-          onClick={goBack}
-          className="flex items-center gap-1 font-sans text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" /> Volver
-        </button>
-        <Link
-          href={`/salon/${salon.slug}`}
-          className="flex items-center gap-1 font-sans text-sm text-muted-foreground hover:text-foreground"
-        >
-          <Home className="size-4" /> Inicio
-        </Link>
-      </div>
+    <Drawer
+      open={drawerOpen}
+      onOpenChange={setDrawerOpen}
+      onOpenChangeComplete={handleDrawerOpenChangeComplete}
+      swipeDirection="down"
+      showSwipeHandle
+    >
+      <DrawerContent>
+        <DrawerHeader className="flex-row items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={goBack}
+            className="flex items-center gap-1 font-sans text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="size-4" /> Volver
+          </button>
+          <DrawerTitle className="sr-only">{salon.name}</DrawerTitle>
+          <DrawerClose
+            className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+          >
+            <XIcon />
+            <span className="sr-only">Cerrar</span>
+          </DrawerClose>
+        </DrawerHeader>
 
-      <Questionnaire item={currentStep} onItemChange={handleItemChange}>
-        <QuestionnaireProgress />
+        <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 overflow-y-auto px-6 pb-10">
+          <Questionnaire item={currentStep} onItemChange={handleItemChange}>
+            <QuestionnaireProgress />
 
         {/* Ubicación: choosing a sede plus (new) whether to book at-home. */}
         <QuestionnaireItem name="ubicacion">
@@ -695,7 +734,9 @@ function BookingWizardInner({
             )}
           </div>
         </QuestionnaireItem>
-      </Questionnaire>
-    </div>
+          </Questionnaire>
+        </div>
+      </DrawerContent>
+    </Drawer>
   );
 }
