@@ -40,6 +40,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/appointments", label: "Citas" },
       { href: "/customers", label: "Clientes" },
+      { href: "/messages", label: "Mensajes" },
     ],
   },
   {
@@ -72,47 +73,93 @@ const TYPE_LABELS: Record<string, string> = {
 
 export function AdminSidebar({
   slug,
+  salonId,
   salonName,
   unread,
+  unreadMessages,
   userId,
 }: {
   slug: string;
+  salonId: string;
   salonName: string;
   unread: number;
+  unreadMessages: number;
   userId: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const base = `/salon/${slug}/admin`;
   const [hasUnread, setHasUnread] = useState(unread > 0);
+  const [hasUnreadMessages, setHasUnreadMessages] = useState(unreadMessages > 0);
   const [paletteOpen, setPaletteOpen] = useState(false);
 
+  // One shared client for both subscriptions below (a single realtime
+  // websocket instead of two). Subscribing only after getSession() resolves
+  // matters: on initial mount the browser client's session hasn't finished
+  // hydrating from cookies yet, so a channel.subscribe() fired immediately
+  // joins over realtime with no access token — Postgres Changes reports
+  // SUBSCRIBED regardless, but RLS then has no auth.uid() to match and every
+  // row is silently filtered. Reproduced directly: an admin session's
+  // notifications/messages channels never received a single event until
+  // subscribe was gated on the resolved session.
   useEffect(() => {
     const supabase = createClient();
-    const channel = supabase
-      .channel(`admin-notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_profile_id=eq.${userId}`,
-        },
-        (payload) => {
-          const notification = payload.new as Tables<"notifications">;
-          toast(TYPE_LABELS[notification.type] ?? notification.title, {
-            description: notification.body ?? undefined,
-          });
-          setHasUnread(true);
-        }
-      )
-      .subscribe();
+    let cancelled = false;
+    let notificationsChannel: ReturnType<typeof supabase.channel> | null = null;
+    let messagesChannel: ReturnType<typeof supabase.channel> | null = null;
+
+    supabase.auth.getSession().then(() => {
+      if (cancelled) return;
+
+      notificationsChannel = supabase
+        .channel(`admin-notifications:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            filter: `recipient_profile_id=eq.${userId}`,
+          },
+          (payload) => {
+            const notification = payload.new as Tables<"notifications">;
+            toast(TYPE_LABELS[notification.type] ?? notification.title, {
+              description: notification.body ?? undefined,
+            });
+            setHasUnread(true);
+          }
+        )
+        .subscribe();
+
+      // Any staff member's own outgoing reply also fires an INSERT for the
+      // whole salon channel — the sender check keeps it from re-marking the
+      // inbox unread for themselves the instant they hit send.
+      messagesChannel = supabase
+        .channel(`admin-messages:${salonId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "messages",
+            filter: `salon_id=eq.${salonId}`,
+          },
+          (payload) => {
+            const message = payload.new as Tables<"messages">;
+            if (message.sender_profile_id === userId) return;
+            toast("Nuevo mensaje", { description: message.body });
+            setHasUnreadMessages(true);
+          }
+        )
+        .subscribe();
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (notificationsChannel) supabase.removeChannel(notificationsChannel);
+      if (messagesChannel) supabase.removeChannel(messagesChannel);
     };
-  }, [userId]);
+  }, [salonId, userId]);
 
   // Global shortcut, same convention as Linear/Vercel's command bars — cmdk
   // itself only handles keys while its own input is focused, so opening the
@@ -164,8 +211,12 @@ export function AdminSidebar({
                       <SidebarMenuButton
                         isActive={isItemActive(item.href)}
                         render={<Link href={`${base}${item.href}`} />}
+                        onClick={item.href === "/messages" ? () => setHasUnreadMessages(false) : undefined}
                       >
                         {item.label}
+                        {item.href === "/messages" && hasUnreadMessages && (
+                          <span className="ml-auto size-2 shrink-0 rounded-full bg-gold" />
+                        )}
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}

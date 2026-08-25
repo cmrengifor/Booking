@@ -486,6 +486,58 @@ export type Database = {
           },
         ]
       }
+      conversations: {
+        Row: {
+          created_at: string
+          customer_id: string
+          customer_last_read_at: string | null
+          id: string
+          last_message_at: string
+          salon_id: string
+          staff_last_read_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          customer_last_read_at?: string | null
+          id?: string
+          last_message_at?: string
+          salon_id: string
+          staff_last_read_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          customer_last_read_at?: string | null
+          id?: string
+          last_message_at?: string
+          salon_id?: string
+          staff_last_read_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "conversations_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           created_at: string
@@ -669,6 +721,65 @@ export type Database = {
             columns: ["salon_id"]
             isOneToOne: false
             referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          body: string
+          conversation_id: string
+          created_at: string
+          id: string
+          salon_id: string
+          sender_profile_id: string
+          sender_role: string
+        }
+        Insert: {
+          body: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          salon_id: string
+          sender_profile_id: string
+          sender_role: string
+        }
+        Update: {
+          body?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          salon_id?: string
+          sender_profile_id?: string
+          sender_role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salon_analytics_summary"
+            referencedColumns: ["salon_id"]
+          },
+          {
+            foreignKeyName: "messages_salon_id_fkey"
+            columns: ["salon_id"]
+            isOneToOne: false
+            referencedRelation: "salons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_profile_id_fkey"
+            columns: ["sender_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -2016,6 +2127,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_or_create_conversation: {
+        Args: { p_salon_id: string }
+        Returns: {
+          created_at: string
+          customer_id: string
+          customer_last_read_at: string | null
+          id: string
+          last_message_at: string
+          salon_id: string
+          staff_last_read_at: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "conversations"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_or_create_customer: {
         Args: { p_profile_id: string; p_salon_id: string }
         Returns: string
@@ -2045,6 +2174,10 @@ export type Database = {
         }[]
       }
       is_platform_admin: { Args: never; Returns: boolean }
+      mark_conversation_read: {
+        Args: { p_conversation_id: string }
+        Returns: undefined
+      }
       mark_no_show: {
         Args: { p_appointment_id: string }
         Returns: {

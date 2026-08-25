@@ -12,16 +12,17 @@ import { BookingTrigger } from "./booking-trigger";
 
 export function SiteHeader({
   salon,
-  isStaff = false,
-  isPlatformAdmin = false,
+  isLoggedIn = false,
   accountSlot,
 }: {
   salon: Salon;
-  /** Has an active salon_membership at this salon (any role). */
-  isStaff?: boolean;
-  isPlatformAdmin?: boolean;
+  /** Hides "Contáctanos" once signed in — AccountMenu's dropdown covers
+   *  account-scoped contact/support instead. */
+  isLoggedIn?: boolean;
   /** Rendered where the plain "Mi cuenta" link used to sit — pass
-   *  `<AccountMenu salon={salon} />` for the real profile dropdown. */
+   *  `<AccountMenu salon={salon} />` for the real profile dropdown.
+   *  "Panel del salón" and "Plataforma" now live inside that dropdown
+   *  too, not as separate header links. */
   accountSlot?: ReactNode;
 }) {
   const socialLinks = getSocialLinks(salon);
@@ -84,30 +85,7 @@ export function SiteHeader({
         >
           Portafolio
         </Link>
-        {accountSlot ?? (
-          <Link
-            href={`/salon/${salon.slug}/account`}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Mi cuenta
-          </Link>
-        )}
-        {isStaff && (
-          <Link
-            href={`/salon/${salon.slug}/admin`}
-            className="text-gold hover:text-foreground"
-          >
-            Panel del salón
-          </Link>
-        )}
-        {isPlatformAdmin && (
-          <Link href="/platform-admin" className="text-gold hover:text-foreground">
-            Plataforma
-          </Link>
-        )}
-        <ShareButton salon={salon} />
-        <SwitchButton size="sm" showLabel={false} aria-label="Cambiar tema" className="h-8 w-8 px-0" />
-        {hasContactInfo && (
+        {!isLoggedIn && hasContactInfo && (
           <div ref={panelRef} className="relative">
             <button
               ref={contactTriggerRef}
@@ -157,6 +135,16 @@ export function SiteHeader({
               )}
             </div>
           </div>
+        )}
+        <ShareButton salon={salon} />
+        <SwitchButton size="sm" showLabel={false} aria-label="Cambiar tema" className="h-8 w-8 px-0" />
+        {accountSlot ?? (
+          <Link
+            href={`/salon/${salon.slug}/account`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Mi cuenta
+          </Link>
         )}
       </nav>
     </header>

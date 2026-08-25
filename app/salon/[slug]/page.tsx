@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
-import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
 import { AccountMenu } from "@/components/public-site/account-menu";
 import { Hero } from "@/components/public-site/hero";
@@ -21,8 +21,7 @@ export default async function SalonHomePage({
 
   const supabase = await createClient();
   const [
-    membership,
-    platformAdmin,
+    user,
     { data: categories },
     { data: services },
     { data: variants },
@@ -32,8 +31,7 @@ export default async function SalonHomePage({
     { data: faqs },
     { data: reviews },
   ] = await Promise.all([
-    getSalonMembership(salon.id),
-    isPlatformAdmin(),
+    getCurrentUser(),
     supabase
       .from("service_categories")
       .select("*")
@@ -89,12 +87,7 @@ export default async function SalonHomePage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader
-        salon={salon}
-        isStaff={!!membership}
-        isPlatformAdmin={platformAdmin}
-        accountSlot={<AccountMenu salon={salon} />}
-      />
+      <SiteHeader salon={salon} isLoggedIn={!!user} accountSlot={<AccountMenu salon={salon} />} />
       <Hero salon={salon} />
       <ServicesSection
         slug={slug}

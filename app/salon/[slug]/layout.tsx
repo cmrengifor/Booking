@@ -4,6 +4,7 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { SalonProvider } from "@/lib/tenant/salon-context";
 import { getBookingData } from "@/lib/booking/get-booking-data";
 import { GlobalBookingDrawer } from "@/components/public-site/global-booking-drawer";
+import { GlobalChatDrawer } from "@/components/public-site/global-chat-drawer";
 
 export default async function SalonLayout({
   children,
@@ -19,7 +20,7 @@ export default async function SalonLayout({
   return (
     <SalonProvider salon={salon}>
       <GlobalBookingDrawer salon={salon} data={bookingData}>
-        {children}
+        <GlobalChatDrawer salon={salon}>{children}</GlobalChatDrawer>
       </GlobalBookingDrawer>
       <Toaster position="top-right" richColors />
     </SalonProvider>

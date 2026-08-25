@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Bell, FileText, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Bell, FileText, LayoutDashboard, LogOut, MessageCircle, ShieldCheck, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
+import { useChatDrawer } from "@/components/public-site/chat-drawer-context";
 
 function initials(name: string) {
   return name
@@ -53,7 +54,9 @@ export function ProfileDropdown({
   email,
   avatarUrl,
   unreadCount = 0,
+  unreadMessages = 0,
   isStaff = false,
+  isPlatformAdmin = false,
   onSignOut,
   className,
 }: {
@@ -62,12 +65,22 @@ export function ProfileDropdown({
   email: string;
   avatarUrl: string | null;
   unreadCount?: number;
+  unreadMessages?: number;
   isStaff?: boolean;
+  isPlatformAdmin?: boolean;
   onSignOut: () => void | Promise<void>;
   className?: string;
 }) {
+  const { openChat } = useChatDrawer();
+
   const menuItems = [
     { label: "Mi cuenta", href: `/salon/${slug}/account`, icon: <User className="size-4" /> },
+    {
+      label: "Mensajes",
+      onClick: openChat,
+      icon: <MessageCircle className="size-4" />,
+      value: unreadMessages > 0 ? String(unreadMessages) : undefined,
+    },
     {
       label: "Notificaciones",
       href: `/salon/${slug}/notifications`,
@@ -80,6 +93,15 @@ export function ProfileDropdown({
             label: "Panel del salón",
             href: `/salon/${slug}/admin`,
             icon: <LayoutDashboard className="size-4" />,
+          },
+        ]
+      : []),
+    ...(isPlatformAdmin
+      ? [
+          {
+            label: "Plataforma",
+            href: "/platform-admin",
+            icon: <ShieldCheck className="size-4" />,
           },
         ]
       : []),
@@ -118,7 +140,13 @@ export function ProfileDropdown({
 
           <div className="flex flex-col gap-0.5">
             {menuItems.map((item) => (
-              <DropdownMenuItem key={item.label} render={<Link href={item.href} />} className="justify-between">
+              <DropdownMenuItem
+                key={item.label}
+                className="justify-between"
+                {...("onClick" in item
+                  ? { nativeButton: true, render: <button type="button" onClick={item.onClick} /> }
+                  : { render: <Link href={item.href} /> })}
+              >
                 <span className="flex items-center gap-2">
                   {item.icon}
                   {item.label}

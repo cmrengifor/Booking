@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUser } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
 import { AccountMenu } from "@/components/public-site/account-menu";
 import { SiteFooter } from "@/components/public-site/site-footer";
@@ -50,9 +51,11 @@ export default async function ReagendarTokenPage({
     }
   }
 
+  const user = await getCurrentUser();
+
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader salon={salon} accountSlot={<AccountMenu salon={salon} />} />
+      <SiteHeader salon={salon} isLoggedIn={!!user} accountSlot={<AccountMenu salon={salon} />} />
       <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
         <h1 className="font-heading text-2xl text-foreground">Este enlace ya no está activo</h1>
         <p className="max-w-md font-sans text-sm text-muted-foreground">

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
-import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
+import { getCurrentUser } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
 import { AccountMenu } from "@/components/public-site/account-menu";
 import { SiteFooter } from "@/components/public-site/site-footer";
@@ -32,9 +32,8 @@ export default async function PortfolioPage({
   if (!salon) notFound();
 
   const supabase = await createClient();
-  const [membership, platformAdmin, { data: artists }, { data: items }] = await Promise.all([
-    getSalonMembership(salon.id),
-    isPlatformAdmin(),
+  const [user, { data: artists }, { data: items }] = await Promise.all([
+    getCurrentUser(),
     supabase
       .from("artist_profiles")
       .select("salon_membership_id, display_name")
@@ -66,12 +65,7 @@ export default async function PortfolioPage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader
-        salon={salon}
-        isStaff={!!membership}
-        isPlatformAdmin={platformAdmin}
-        accountSlot={<AccountMenu salon={salon} />}
-      />
+      <SiteHeader salon={salon} isLoggedIn={!!user} accountSlot={<AccountMenu salon={salon} />} />
       {reel.length > 0 && (
         <div className="pt-10 sm:pt-14">
           <MotionRow items={reel} cardWidth={240} gap={16} cornerRadius={2} />
