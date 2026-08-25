@@ -5,8 +5,10 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { BookingTrigger } from "@/components/public-site/booking-trigger";
+import { presetIdForAvatarUrl } from "@/lib/avatars";
 import { cancelMyAppointment, signOut, submitReview, updateProfile } from "./actions";
 import { PhoneInput } from "./phone-input";
+import { AvatarPickerSection } from "./avatar-picker-section";
 
 const STATUS_LABELS: Record<string, string> = {
   open: "Buscando artista",
@@ -137,22 +139,26 @@ export default async function AccountPage({
         </div>
       </div>
 
-      <form
-        action={updateProfileAction}
-        className="flex max-w-sm flex-col gap-3 rounded-md border border-border p-4"
-      >
-        <h2 className="font-sans text-sm font-medium text-foreground">Perfil</h2>
-        <input
-          name="full_name"
-          defaultValue={profile?.full_name ?? ""}
-          placeholder="Nombre completo"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
-        />
-        <PhoneInput name="phone" defaultValue={profile?.phone ?? ""} />
-        <Button type="submit" size="sm">
-          Guardar
-        </Button>
-      </form>
+      <div className="flex flex-wrap gap-6">
+        <form
+          action={updateProfileAction}
+          className="flex max-w-sm flex-1 flex-col gap-3 rounded-md border border-border p-4"
+        >
+          <h2 className="font-sans text-sm font-medium text-foreground">Perfil</h2>
+          <input
+            name="full_name"
+            defaultValue={profile?.full_name ?? ""}
+            placeholder="Nombre completo"
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
+          />
+          <PhoneInput name="phone" defaultValue={profile?.phone ?? ""} />
+          <Button type="submit" size="sm">
+            Guardar
+          </Button>
+        </form>
+
+        <AvatarPickerSection slug={slug} initialSelectedId={presetIdForAvatarUrl(profile?.avatar_url)} />
+      </div>
 
       <div>
         <h2 className="font-heading text-lg text-foreground">Próximas citas</h2>

@@ -3,6 +3,25 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { presetAvatarUrl } from "@/lib/avatars";
+
+export async function updateAvatar(slug: string, formData: FormData) {
+  const avatarId = Number(formData.get("avatar_id"));
+  // Resolve against the server's own catalog rather than trusting a URL
+  // from the client — avatar_url ends up rendered site-wide via next/image.
+  const avatarUrl = presetAvatarUrl(avatarId);
+  if (!avatarUrl) return;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return;
+
+  await supabase.from("profiles").update({ avatar_url: avatarUrl }).eq("id", user.id);
+
+  revalidatePath(`/salon/${slug}/account`);
+}
 
 export async function updateProfile(slug: string, formData: FormData) {
   const fullName = String(formData.get("full_name") ?? "").trim();
