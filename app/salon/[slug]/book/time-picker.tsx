@@ -30,7 +30,12 @@ export function TimePicker({
 
   return (
     <RadioGroup
-      value={selectedLabel ?? undefined}
+      // A defined value (never undefined) from the first render — RadioGroup
+      // decides controlled-vs-uncontrolled once, on mount; toggling between
+      // `undefined` (nothing picked yet) and a real label once one is
+      // warned "uncontrolled to controlled" every time. No slot is ever
+      // labeled "", so it's a safe empty-selection sentinel.
+      value={selectedLabel ?? ""}
       onValueChange={(label) => {
         const iso = slots.find((s) => DateTime.fromISO(s).setZone(timezone).toFormat("HH:mm") === label);
         if (iso) onSelect(iso);

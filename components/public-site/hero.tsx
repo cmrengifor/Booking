@@ -1,7 +1,7 @@
 import Image from "next/image";
-import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import type { Salon } from "@/lib/tenant/resolve-salon";
+import { BookingTrigger } from "./booking-trigger";
 
 export function Hero({ salon }: { salon: Salon }) {
   return (
@@ -27,8 +27,7 @@ export function Hero({ salon }: { salon: Salon }) {
             {salon.hero_subtitle}
           </p>
         )}
-        <Link
-          href={`/salon/${salon.slug}/book`}
+        <BookingTrigger
           className={buttonVariants({
             // `!` forces these to win over the variant's own bg-primary/
             // text-primary-foreground — tailwind-merge doesn't dedupe
@@ -40,7 +39,7 @@ export function Hero({ salon }: { salon: Salon }) {
           })}
         >
           Reservar una cita
-        </Link>
+        </BookingTrigger>
       </div>
     </section>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Reveal } from "./reveal";
 import { ImageCarousel } from "./image-carousel";
+import { BookingTrigger } from "./booking-trigger";
 import { buttonVariants } from "@/components/ui/button";
 import type { Tables } from "@/types/database";
 
@@ -87,12 +88,12 @@ export function ServicesSection({
                       {servicePhotos.length > 0 && (
                         <ImageCarousel images={servicePhotos} className="mt-4" />
                       )}
-                      <Link
-                        href={`/salon/${slug}/book?serviceId=${service.id}`}
+                      <BookingTrigger
+                        preselect={{ serviceId: service.id }}
                         className={buttonVariants({ variant: "outline", size: "sm", className: "mt-4" })}
                       >
                         Reservar
-                      </Link>
+                      </BookingTrigger>
                     </li>
                   );
                 })}

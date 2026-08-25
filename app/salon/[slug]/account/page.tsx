@@ -4,6 +4,7 @@ import { getCurrentProfile, getSalonMembership, isPlatformAdmin } from "@/lib/au
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { BookingTrigger } from "@/components/public-site/booking-trigger";
 import { cancelMyAppointment, signOut, submitReview, updateProfile } from "./actions";
 import { PhoneInput } from "./phone-input";
 
@@ -103,9 +104,9 @@ export default async function AccountPage({
           </h1>
         </div>
         <div className="flex items-center gap-4">
-          <Link href={`/salon/${slug}/book`} className={buttonVariants({ size: "sm" })}>
+          <BookingTrigger className={buttonVariants({ size: "sm" })}>
             Reservar ahora
-          </Link>
+          </BookingTrigger>
           {membership && (
             <Link
               href={`/salon/${slug}/admin`}
