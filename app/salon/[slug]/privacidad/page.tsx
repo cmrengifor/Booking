@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
+import { AccountMenu } from "@/components/public-site/account-menu";
 import { SiteFooter } from "@/components/public-site/site-footer";
 
 export default async function PrivacyPage({
@@ -18,7 +19,12 @@ export default async function PrivacyPage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader salon={salon} isStaff={!!membership} isPlatformAdmin={platformAdmin} />
+      <SiteHeader
+        salon={salon}
+        isStaff={!!membership}
+        isPlatformAdmin={platformAdmin}
+        accountSlot={<AccountMenu salon={salon} />}
+      />
       <div className="px-6 py-16 sm:px-10 sm:py-24">
         <div className="mx-auto flex max-w-2xl flex-col gap-4">
           <h1 className="font-heading text-3xl text-foreground">

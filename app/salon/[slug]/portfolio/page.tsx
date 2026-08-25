@@ -5,6 +5,7 @@ import { resolveSalonBySlug } from "@/lib/tenant/resolve-salon";
 import { createClient } from "@/lib/supabase/server";
 import { getSalonMembership, isPlatformAdmin } from "@/lib/auth/session";
 import { SiteHeader } from "@/components/public-site/site-header";
+import { AccountMenu } from "@/components/public-site/account-menu";
 import { SiteFooter } from "@/components/public-site/site-footer";
 import { MotionRow } from "@/components/public-site/motion-row";
 import { cn } from "@/lib/utils";
@@ -65,7 +66,12 @@ export default async function PortfolioPage({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SiteHeader salon={salon} isStaff={!!membership} isPlatformAdmin={platformAdmin} />
+      <SiteHeader
+        salon={salon}
+        isStaff={!!membership}
+        isPlatformAdmin={platformAdmin}
+        accountSlot={<AccountMenu salon={salon} />}
+      />
       {reel.length > 0 && (
         <div className="pt-10 sm:pt-14">
           <MotionRow items={reel} cardWidth={240} gap={16} cornerRadius={2} />

@@ -1,22 +1,28 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { Salon } from "@/lib/tenant/resolve-salon";
 import { getSocialLinks, SOCIAL_LABELS } from "@/lib/social-links";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import SwitchButton from "@/components/kokonutui/switch-button";
 import { ShareButton } from "./share-button";
+import { BookingTrigger } from "./booking-trigger";
 
 export function SiteHeader({
   salon,
   isStaff = false,
   isPlatformAdmin = false,
+  accountSlot,
 }: {
   salon: Salon;
   /** Has an active salon_membership at this salon (any role). */
   isStaff?: boolean;
   isPlatformAdmin?: boolean;
+  /** Rendered where the plain "Mi cuenta" link used to sit — pass
+   *  `<AccountMenu salon={salon} />` for the real profile dropdown. */
+  accountSlot?: ReactNode;
 }) {
   const socialLinks = getSocialLinks(salon);
   const [contactOpen, setContactOpen] = useState(false);
@@ -60,12 +66,9 @@ export function SiteHeader({
         {salon.name}
       </Link>
       <nav className="flex items-center gap-6 font-sans text-sm">
-        <Link
-          href={`/salon/${salon.slug}/book`}
-          className={buttonVariants({ size: "sm", className: "px-4" })}
-        >
+        <BookingTrigger className={buttonVariants({ size: "sm", className: "px-4" })}>
           Reservar una cita
-        </Link>
+        </BookingTrigger>
         {/* Route-prefixed so it works from any page, not just the landing
             itself — a bare "#servicios" href only rewrites the hash of
             whatever page you're already on. */}
@@ -81,12 +84,14 @@ export function SiteHeader({
         >
           Portafolio
         </Link>
-        <Link
-          href={`/salon/${salon.slug}/account`}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          Mi cuenta
-        </Link>
+        {accountSlot ?? (
+          <Link
+            href={`/salon/${salon.slug}/account`}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            Mi cuenta
+          </Link>
+        )}
         {isStaff && (
           <Link
             href={`/salon/${salon.slug}/admin`}
@@ -101,6 +106,7 @@ export function SiteHeader({
           </Link>
         )}
         <ShareButton salon={salon} />
+        <SwitchButton size="sm" showLabel={false} aria-label="Cambiar tema" className="h-8 w-8 px-0" />
         {hasContactInfo && (
           <div ref={panelRef} className="relative">
             <button
